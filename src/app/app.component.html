@@ -1,0 +1,226 @@
+<div class="h-screen w-full bg-slate-50 flex flex-col overflow-hidden font-sans text-slate-800">
+  
+  <!-- --- Toolbar --- -->
+  <div class="h-16 bg-white border-b border-gray-200 px-6 flex items-center justify-between shadow-sm z-20">
+    <div class="flex items-center gap-3">
+      <div class="bg-indigo-600 p-2 rounded-lg">
+        <i-lucide name="activity" class="text-white" [size]="20"></i-lucide>
+      </div>
+      <div>
+        <h1 class="font-bold text-xl text-gray-800 tracking-tight">My Family</h1>
+        <p class="text-xs text-gray-500">Ancestral Tracker</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <div class="hidden md:flex bg-gray-100 rounded-lg p-1 mr-4">
+        <button (click)="zoomOut()" class="p-2 hover:bg-white rounded-md transition-colors">
+          <i-lucide name="zoom-out" [size]="18"></i-lucide>
+        </button>
+        <span class="px-3 py-2 text-xs font-mono font-medium">{{ getZoomPercentage() }}%</span>
+        <button (click)="zoomIn()" class="p-2 hover:bg-white rounded-md transition-colors">
+          <i-lucide name="zoom-in" [size]="18"></i-lucide>
+        </button>
+      </div>
+
+      <button
+        (click)="openAddMember()"
+        class="px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700">
+        <i-lucide name="plus" [size]="14"></i-lucide>
+        <span class="hidden sm:inline">Add Member</span>
+      </button>
+
+      <!-- Quick Add Panel (fallback if modal isn't visible) -->
+      <div *ngIf="quickAddOpen" class="absolute right-6 top-16 w-80 bg-white rounded-lg shadow-lg p-4 z-40">
+        <div class="flex justify-between items-center mb-2">
+          <strong>Add Member</strong>
+          <button (click)="closeQuickAdd()" class="text-gray-400 hover:text-gray-600">
+            <i-lucide name="x" [size]="16"></i-lucide>
+          </button>
+        </div>
+        <form (ngSubmit)="handleSubmit()" class="space-y-2">
+          <input required type="text" placeholder="Full name" [(ngModel)]="formData.name" name="quickName" class="w-full px-2 py-1 border rounded" />
+          <div class="flex gap-2">
+            <input required type="number" placeholder="Age" [(ngModel)]="formData.age" name="quickAge" class="w-1/2 px-2 py-1 border rounded" />
+            <select [(ngModel)]="formData.gender" name="quickGender" class="w-1/2 px-2 py-1 border rounded">
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+          <div class="flex gap-2">
+            <button type="submit" class="flex-1 px-3 py-1 bg-indigo-600 text-white rounded">Add</button>
+            <button type="button" (click)="closeQuickAdd()" class="flex-1 px-3 py-1 border rounded">Cancel</button>
+          </div>
+        </form>
+      </div>
+
+      <button 
+        (click)="fileInput.click()"
+        class="px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-95 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50">
+        <i-lucide name="upload" [size]="16"></i-lucide>
+        <span class="hidden sm:inline">Load JSON</span>
+      </button>
+      <input 
+        #fileInput
+        type="file" 
+        accept=".json" 
+        class="hidden" 
+        (change)="uploadTree($event)">
+
+      <button 
+        (click)="downloadTree()"
+        class="px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-95 bg-indigo-600 text-white hover:bg-indigo-700">
+        <i-lucide name="download" [size]="16"></i-lucide>
+        <span class="hidden sm:inline">Save Tree</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- --- Canvas Workspace --- -->
+  <div 
+    class="flex-1 overflow-hidden relative cursor-move bg-slate-50"
+    #containerRef
+    (mousedown)="onMouseDown($event)"
+    (mousemove)="onMouseMove($event)"
+    (mouseup)="onMouseUp()"
+    (mouseleave)="onMouseUp()">
+    
+    <!-- Grid Pattern Background -->
+    <div 
+      class="absolute inset-0 opacity-[0.03] pointer-events-none"
+      [style.backgroundImage]="'radial-gradient(#4f46e5 1px, transparent 1px)'"
+      [style.backgroundSize]="'20px 20px'"
+      [style.transform]="'translate(' + (position.x % 20) + 'px, ' + (position.y % 20) + 'px)'">
+    </div>
+
+    <!-- Tree Container -->
+    <div 
+      class="absolute origin-top-left transition-transform duration-75 ease-out"
+      [style.transform]="'translate(' + position.x + 'px, ' + position.y + 'px) scale(' + scale + ')'"
+      [style.minWidth]="'100vw'"
+      [style.minHeight]="'100vh'"
+      [style.display]="'flex'"
+      [style.justifyContent]="'center'"
+      [style.padding]="'100px'">
+      
+      <app-tree-node 
+        *ngIf="treeData"
+        [node]="treeData"
+        [isRoot]="true"
+        (onEdit)="handleNodeAction($event.id, 'edit', $event)"
+        (onAddChild)="handleNodeAction($event.id, 'add_child', $event)"
+        (onAddSpouse)="handleNodeAction($event.id, 'add_spouse', $event)"
+        (onDelete)="deleteNode($event)">
+      </app-tree-node>
+    </div>
+
+    <!-- Instructions Overlay -->
+    <div class="absolute bottom-6 left-6 bg-white/90 backdrop-blur p-4 rounded-xl shadow-lg border border-gray-100 max-w-xs pointer-events-none z-10">
+      <h4 class="font-bold text-sm mb-2 text-gray-700">Legend</h4>
+      <div class="space-y-2 text-xs">
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 border-2 border-blue-600 rounded bg-white"></div>
+          <span>Blood Relative (Descendants)</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <div class="w-3 h-3 border-2 border-emerald-500 rounded bg-emerald-50"></div>
+          <span>Spouse / Partner</span>
+        </div>
+        <div class="flex items-center gap-2 text-gray-400">
+          <div class="w-4 border-t-2 border-dashed border-gray-400"></div>
+          <span>Marriage Link</span>
+        </div>
+        <p class="mt-2 text-gray-500 pt-2 border-t font-medium">
+          Drag canvas to pan • Hover cards for actions
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- --- Add/Edit Modal (standalone) --- -->
+  <div *ngIf="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+        <h3 class="text-lg font-bold text-gray-800">{{ getModalTitle() }}</h3>
+        <button 
+          (click)="closeModal()"
+          class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors">
+          <i-lucide name="x" [size]="20"></i-lucide>
+        </button>
+      </div>
+      <div class="p-6">
+        <form (ngSubmit)="handleSubmit()" class="space-y-4">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+            <input 
+              required
+              type="text" 
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+              placeholder="e.g. John Doe"
+              [(ngModel)]="formData.name"
+              name="name">
+          </div>
+
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
+              <input 
+                required
+                type="number" 
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                placeholder="25"
+                [(ngModel)]="formData.age"
+                name="age">
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+              <select 
+                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                [(ngModel)]="formData.gender"
+                name="gender">
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Current Location</label>
+            <div class="relative">
+              <i-lucide name="map-pin" [size]="16" class="absolute left-3 top-3 text-gray-400"></i-lucide>
+              <input 
+                type="text" 
+                class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
+                placeholder="e.g. New York, USA"
+                [(ngModel)]="formData.location"
+                name="location">
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+            <span class="text-sm font-medium text-gray-700">Is Alive?</span>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                class="sr-only peer"
+                [(ngModel)]="formData.isAlive"
+                name="isAlive">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+            </label>
+          </div>
+
+          <div class="pt-2">
+            <button 
+              type="submit"
+              class="w-full px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-95 bg-indigo-600 text-white hover:bg-indigo-700 justify-center">
+              {{ actionType === 'edit' ? 'Save Changes' : 'Add Member' }}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>

@@ -1,0 +1,73 @@
+<div class="modal-overlay" *ngIf="isOpen" (click)="onClose()">
+  <div class="modal" (click)="$event.stopPropagation()">
+    <h2>{{ modalTitle }}</h2>
+
+    <form (ngSubmit)="onSubmit()">
+      <!-- Name -->
+      <div class="form-group">
+        <label for="name">Name *</label>
+        <input
+          id="name"
+          type="text"
+          [(ngModel)]="form.name"
+          name="name"
+          placeholder="Enter full name"
+          required
+        />
+      </div>
+
+      <!-- Gender -->
+      <div class="form-group">
+        <label for="gender">Gender *</label>
+        <select [(ngModel)]="form.gender" name="gender" id="gender" required>
+          <option *ngFor="let g of genders" [value]="g">{{ g }}</option>
+        </select>
+      </div>
+
+      <!-- Age -->
+      <div class="form-group">
+        <label for="age">Age *</label>
+        <input
+          id="age"
+          type="number"
+          [(ngModel)]="form.age"
+          name="age"
+          min="0"
+          max="150"
+          required
+        />
+      </div>
+
+      <!-- Location -->
+      <div class="form-group">
+        <label for="location">Current Location</label>
+        <input
+          id="location"
+          type="text"
+          [(ngModel)]="form.location"
+          name="location"
+          placeholder="City, Country"
+        />
+      </div>
+
+      <!-- Alive Status -->
+      <div class="form-group checkbox">
+        <input
+          id="isAlive"
+          type="checkbox"
+          [(ngModel)]="form.isAlive"
+          name="isAlive"
+        />
+        <label for="isAlive">Alive</label>
+      </div>
+
+      <!-- Buttons -->
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">Save</button>
+        <button type="button" class="btn btn-secondary" (click)="onClose()">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

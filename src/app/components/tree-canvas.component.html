@@ -1,0 +1,25 @@
+<div class="tree-container">
+  <svg
+    #svgCanvas
+    [attr.width]="canvasWidth"
+    [attr.height]="canvasHeight"
+    class="tree-canvas"
+  ></svg>
+
+  <div *ngIf="selectedPerson" class="person-info-panel">
+    <h3>{{ selectedPerson.name }}</h3>
+    <div class="info-row">
+      <strong>Gender:</strong> {{ selectedPerson.gender }}
+    </div>
+    <div class="info-row">
+      <strong>Age:</strong> {{ selectedPerson.age }}
+    </div>
+    <div class="info-row">
+      <strong>Location:</strong> {{ selectedPerson.location }}
+    </div>
+    <div class="info-row">
+      <strong>Status:</strong> {{ selectedPerson.isAlive ? 'Alive' : 'Deceased' }}
+    </div>
+    <button (click)="selectedPerson = null" class="close-btn">Close</button>
+  </div>
+</div>
