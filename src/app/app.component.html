@@ -1,226 +1,540 @@
-<div class="h-screen w-full bg-slate-50 flex flex-col overflow-hidden font-sans text-slate-800">
-  
-  <!-- --- Toolbar --- -->
-  <div class="h-16 bg-white border-b border-gray-200 px-6 flex items-center justify-between shadow-sm z-20">
-    <div class="flex items-center gap-3">
-      <div class="bg-indigo-600 p-2 rounded-lg">
-        <i-lucide name="activity" class="text-white" [size]="20"></i-lucide>
+<app-onboarding
+  *ngIf="onboardingVisible"
+  (complete)="completeGuidedTree($event)"
+  (manual)="startManualTree()"
+  (importRequested)="startOnboardingImport()">
+</app-onboarding>
+
+<div class="app-shell">
+  <header class="app-header">
+    <div class="brand-block">
+      <button type="button" class="rail-toggle" (click)="leftRailOpen = !leftRailOpen" aria-label="Toggle family explorer">
+        <i-lucide name="menu" [size]="19"></i-lucide>
+      </button>
+      <div class="brand-mark" aria-hidden="true">
+        <span></span><span></span><span></span>
       </div>
-      <div>
-        <h1 class="font-bold text-xl text-gray-800 tracking-tight">My Family</h1>
-        <p class="text-xs text-gray-500">Ancestral Tracker</p>
+      <div class="brand-copy">
+        <strong>My Family</strong>
+        <span>{{ personIndex.length }} {{ personIndex.length === 1 ? 'person' : 'people' }} remembered</span>
       </div>
     </div>
 
-    <div class="flex items-center gap-2">
-      <div class="hidden md:flex bg-gray-100 rounded-lg p-1 mr-4">
-        <button (click)="zoomOut()" class="p-2 hover:bg-white rounded-md transition-colors">
-          <i-lucide name="zoom-out" [size]="18"></i-lucide>
+    <nav class="view-switcher" aria-label="Workspace view">
+      <button type="button" aria-label="Tree view" [class.active]="workspaceView === 'tree'" (click)="setWorkspaceView('tree')">
+        <i-lucide name="git-fork" [size]="15"></i-lucide>
+        <span>Tree</span>
+      </button>
+      <button type="button" aria-label="Timeline view" [class.active]="workspaceView === 'timeline'" (click)="setWorkspaceView('timeline')">
+        <i-lucide name="clock-3" [size]="15"></i-lucide>
+        <span>Timeline</span>
+      </button>
+    </nav>
+
+    <div class="header-actions">
+      <div class="history-actions" aria-label="Edit history">
+        <button type="button" (click)="undo()" [disabled]="!canUndo" title="Undo (Ctrl+Z)" aria-label="Undo">
+          <i-lucide name="undo-2" [size]="17"></i-lucide>
         </button>
-        <span class="px-3 py-2 text-xs font-mono font-medium">{{ getZoomPercentage() }}%</span>
-        <button (click)="zoomIn()" class="p-2 hover:bg-white rounded-md transition-colors">
-          <i-lucide name="zoom-in" [size]="18"></i-lucide>
+        <button type="button" (click)="redo()" [disabled]="!canRedo" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
+          <i-lucide name="redo-2" [size]="17"></i-lucide>
         </button>
       </div>
 
-      <button
-        (click)="openAddMember()"
-        class="px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-95 bg-emerald-600 text-white hover:bg-emerald-700">
-        <i-lucide name="plus" [size]="14"></i-lucide>
-        <span class="hidden sm:inline">Add Member</span>
+      <button type="button" class="sync-pill" [class.sync-pill--error]="syncStatus === 'error'" (click)="downloadTree()" [title]="lastAction" [attr.aria-label]="syncLabel">
+        <i-lucide [name]="syncStatus === 'synced' ? 'cloud' : (syncStatus === 'error' ? 'circle-alert' : 'save')" [size]="15"></i-lucide>
+        <span>{{ syncLabel }}</span>
       </button>
 
-      <!-- Quick Add Panel (fallback if modal isn't visible) -->
-      <div *ngIf="quickAddOpen" class="absolute right-6 top-16 w-80 bg-white rounded-lg shadow-lg p-4 z-40">
-        <div class="flex justify-between items-center mb-2">
-          <strong>Add Member</strong>
-          <button (click)="closeQuickAdd()" class="text-gray-400 hover:text-gray-600">
-            <i-lucide name="x" [size]="16"></i-lucide>
+      <button type="button" class="header-button header-button--subtle" aria-label="Import family tree" (click)="openTools('import')">
+        <i-lucide name="file-up" [size]="16"></i-lucide>
+        <span>Import</span>
+      </button>
+      <button type="button" class="header-button header-button--primary" aria-label="Add person" (click)="treeData && openPersonForm(treeData, 'add_child')">
+        <i-lucide name="plus" [size]="16"></i-lucide>
+        <span>Add person</span>
+      </button>
+
+      <ng-container *ngIf="user$ | async as user; else signedOut">
+        <div class="account-chip" [title]="user.email || 'Signed in'">
+          <img *ngIf="user.photoURL" [src]="user.photoURL" alt="">
+          <span *ngIf="!user.photoURL">{{ (user.displayName || user.email || 'U').charAt(0) }}</span>
+          <button type="button" (click)="signOut()" [disabled]="isAuthBusy" aria-label="Sign out">
+            <i-lucide name="log-out" [size]="14"></i-lucide>
           </button>
         </div>
-        <form (ngSubmit)="handleSubmit()" class="space-y-2">
-          <input required type="text" placeholder="Full name" [(ngModel)]="formData.name" name="quickName" class="w-full px-2 py-1 border rounded" />
-          <div class="flex gap-2">
-            <input required type="number" placeholder="Age" [(ngModel)]="formData.age" name="quickAge" class="w-1/2 px-2 py-1 border rounded" />
-            <select [(ngModel)]="formData.gender" name="quickGender" class="w-1/2 px-2 py-1 border rounded">
-              <option value="male">Male</option>
-              <option value="female">Female</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div class="flex gap-2">
-            <button type="submit" class="flex-1 px-3 py-1 bg-indigo-600 text-white rounded">Add</button>
-            <button type="button" (click)="closeQuickAdd()" class="flex-1 px-3 py-1 border rounded">Cancel</button>
-          </div>
-        </form>
-      </div>
-
-      <button 
-        (click)="fileInput.click()"
-        class="px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-95 bg-white text-gray-700 border border-gray-200 hover:bg-gray-50">
-        <i-lucide name="upload" [size]="16"></i-lucide>
-        <span class="hidden sm:inline">Load JSON</span>
-      </button>
-      <input 
-        #fileInput
-        type="file" 
-        accept=".json" 
-        class="hidden" 
-        (change)="uploadTree($event)">
-
-      <button 
-        (click)="downloadTree()"
-        class="px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-95 bg-indigo-600 text-white hover:bg-indigo-700">
-        <i-lucide name="download" [size]="16"></i-lucide>
-        <span class="hidden sm:inline">Save Tree</span>
-      </button>
+      </ng-container>
+      <ng-template #signedOut>
+        <button type="button" class="account-login" (click)="signInWithGoogle()" [disabled]="isAuthBusy" title="Sign in for cloud sync">
+          <i-lucide name="log-in" [size]="16"></i-lucide>
+          <span>{{ isAuthBusy ? 'Connecting…' : 'Sign in' }}</span>
+        </button>
+      </ng-template>
     </div>
-  </div>
+  </header>
 
-  <!-- --- Canvas Workspace --- -->
-  <div 
-    class="flex-1 overflow-hidden relative cursor-move bg-slate-50"
-    #containerRef
-    (mousedown)="onMouseDown($event)"
-    (mousemove)="onMouseMove($event)"
-    (mouseup)="onMouseUp()"
-    (mouseleave)="onMouseUp()">
-    
-    <!-- Grid Pattern Background -->
-    <div 
-      class="absolute inset-0 opacity-[0.03] pointer-events-none"
-      [style.backgroundImage]="'radial-gradient(#4f46e5 1px, transparent 1px)'"
-      [style.backgroundSize]="'20px 20px'"
-      [style.transform]="'translate(' + (position.x % 20) + 'px, ' + (position.y % 20) + 'px)'">
-    </div>
-
-    <!-- Tree Container -->
-    <div 
-      class="absolute origin-top-left transition-transform duration-75 ease-out"
-      [style.transform]="'translate(' + position.x + 'px, ' + position.y + 'px) scale(' + scale + ')'"
-      [style.minWidth]="'100vw'"
-      [style.minHeight]="'100vh'"
-      [style.display]="'flex'"
-      [style.justifyContent]="'center'"
-      [style.padding]="'100px'">
-      
-      <app-tree-node 
-        *ngIf="treeData"
-        [node]="treeData"
-        [isRoot]="true"
-        (onEdit)="handleNodeAction($event.id, 'edit', $event)"
-        (onAddChild)="handleNodeAction($event.id, 'add_child', $event)"
-        (onAddSpouse)="handleNodeAction($event.id, 'add_spouse', $event)"
-        (onDelete)="deleteNode($event)">
-      </app-tree-node>
-    </div>
-
-    <!-- Instructions Overlay -->
-    <div class="absolute bottom-6 left-6 bg-white/90 backdrop-blur p-4 rounded-xl shadow-lg border border-gray-100 max-w-xs pointer-events-none z-10">
-      <h4 class="font-bold text-sm mb-2 text-gray-700">Legend</h4>
-      <div class="space-y-2 text-xs">
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 border-2 border-blue-600 rounded bg-white"></div>
-          <span>Blood Relative (Descendants)</span>
+  <div class="workspace">
+    <aside class="explorer" [class.explorer--closed]="!leftRailOpen">
+      <div class="explorer__header">
+        <div>
+          <p class="section-kicker">Family explorer</p>
+          <h2>Find anyone</h2>
         </div>
-        <div class="flex items-center gap-2">
-          <div class="w-3 h-3 border-2 border-emerald-500 rounded bg-emerald-50"></div>
-          <span>Spouse / Partner</span>
-        </div>
-        <div class="flex items-center gap-2 text-gray-400">
-          <div class="w-4 border-t-2 border-dashed border-gray-400"></div>
-          <span>Marriage Link</span>
-        </div>
-        <p class="mt-2 text-gray-500 pt-2 border-t font-medium">
-          Drag canvas to pan • Hover cards for actions
-        </p>
-      </div>
-    </div>
-  </div>
-
-  <!-- --- Add/Edit Modal (standalone) --- -->
-  <div *ngIf="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
-        <h3 class="text-lg font-bold text-gray-800">{{ getModalTitle() }}</h3>
-        <button 
-          (click)="closeModal()"
-          class="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-200 transition-colors">
-          <i-lucide name="x" [size]="20"></i-lucide>
+        <button type="button" class="icon-button" (click)="filtersOpen = !filtersOpen" [class.icon-button--active]="filtersOpen" aria-label="Toggle advanced filters">
+          <i-lucide name="sliders-horizontal" [size]="16"></i-lucide>
         </button>
       </div>
-      <div class="p-6">
-        <form (ngSubmit)="handleSubmit()" class="space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-            <input 
-              required
-              type="text" 
-              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-              placeholder="e.g. John Doe"
-              [(ngModel)]="formData.name"
-              name="name">
+
+      <label class="search-field">
+        <i-lucide name="search" [size]="16"></i-lucide>
+        <input
+          type="search"
+          placeholder="Name, alias, place or year"
+          [(ngModel)]="searchQuery"
+          (ngModelChange)="applySearch()"
+          aria-label="Search family members">
+        <button *ngIf="searchQuery" type="button" (click)="searchQuery = ''; applySearch()" aria-label="Clear search">
+          <i-lucide name="x" [size]="13"></i-lucide>
+        </button>
+      </label>
+
+      <div *ngIf="filtersOpen" class="filter-panel">
+        <label>
+          <span>Generation</span>
+          <select [(ngModel)]="searchGeneration" (ngModelChange)="applySearch()">
+            <option value="">Every generation</option>
+            <option *ngFor="let generation of generationOptions" [value]="generation">
+              {{ generation === 0 ? 'Root generation' : 'Generation ' + (generation + 1) }}
+            </option>
+          </select>
+        </label>
+        <label>
+          <span>Relationship</span>
+          <select [(ngModel)]="searchRelationship" (ngModelChange)="applySearch()">
+            <option value="">Every relationship</option>
+            <option value="biological_parent">Biological family</option>
+            <option value="adoptive_parent">Adoptive family</option>
+            <option value="step_parent">Step family</option>
+            <option value="guardian">Guardianship</option>
+            <option value="spouse">Spouse</option>
+            <option value="partner">Partner</option>
+            <option value="former_spouse">Former spouse</option>
+          </select>
+        </label>
+        <label>
+          <span>Location</span>
+          <input type="text" placeholder="Filter places" [(ngModel)]="searchLocation" (ngModelChange)="applySearch()">
+        </label>
+        <label>
+          <span>Missing information</span>
+          <select [(ngModel)]="missingFilter" (ngModelChange)="applySearch()">
+            <option value="">Show all profiles</option>
+            <option value="birthDate">Missing birth date</option>
+            <option value="location">Missing location</option>
+            <option value="photo">Missing photo</option>
+            <option value="stories">No stories yet</option>
+          </select>
+        </label>
+        <button type="button" class="filter-clear" (click)="clearFilters()">Clear all filters</button>
+      </div>
+
+      <div class="result-summary">
+        <span>{{ filteredPeople.length }} {{ filteredPeople.length === 1 ? 'match' : 'matches' }}</span>
+        <button type="button" (click)="openTools('bulk')">Bulk edit</button>
+      </div>
+
+      <div class="person-results" role="list">
+        <button
+          *ngFor="let entry of filteredPeople"
+          type="button"
+          role="listitem"
+          class="person-result"
+          [class.person-result--active]="selectedPersonId === entry.node.id"
+          (click)="selectPerson(entry.node, true)">
+          <span class="person-result__avatar" [class.person-result__avatar--photo]="entry.node.photoUrl">
+            <img *ngIf="entry.node.photoUrl" [src]="entry.node.photoUrl" alt="" loading="lazy">
+            <span *ngIf="!entry.node.photoUrl">{{ entry.node.name.charAt(0) || '?' }}</span>
+          </span>
+          <span class="person-result__copy">
+            <strong>{{ entry.node.name }}</strong>
+            <small>
+              {{ entry.node.birthDate ? entry.node.birthDate.slice(0, 4) : 'Year unknown' }}
+              <span *ngIf="entry.node.location"> · {{ entry.node.location }}</span>
+            </small>
+          </span>
+          <span class="person-result__generation">G{{ entry.generation + 1 }}</span>
+        </button>
+
+        <div *ngIf="!filteredPeople.length" class="empty-results">
+          <i-lucide name="user-round-search" [size]="30"></i-lucide>
+          <strong>No one matches yet</strong>
+          <span>Try a shorter name or clear a filter.</span>
+        </div>
+      </div>
+
+      <div class="explorer__footer">
+        <button type="button" (click)="reopenOnboarding()">
+          <i-lucide name="sparkles" [size]="15"></i-lucide>
+          Guided setup
+        </button>
+        <button type="button" (click)="openTools('bulk')">
+          <i-lucide name="wrench" [size]="15"></i-lucide>
+          Advanced tools
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-workspace">
+      <ng-container *ngIf="workspaceView === 'tree'; else timelineView">
+        <section
+          #containerRef
+          class="tree-canvas"
+          [class.tree-canvas--dragging]="isDragging"
+          (pointerdown)="onPointerDown($event)"
+          (pointermove)="onPointerMove($event)"
+          (pointerup)="onPointerUp()"
+          (pointercancel)="onPointerUp()"
+          (wheel)="onWheel($event)">
+
+          <div class="canvas-grid" [style.backgroundPosition]="(position.x % 24) + 'px ' + (position.y % 24) + 'px'"></div>
+
+          <div class="canvas-heading">
+            <span class="canvas-heading__eyebrow">{{ lastAction }}</span>
+            <div *ngIf="!editingTreeName" class="tree-name-display">
+              <strong>{{ treeName }}</strong>
+              <button type="button" (click)="startEditingTreeName()" aria-label="Rename family tree" title="Rename tree">
+                <i-lucide name="pencil" [size]="12"></i-lucide>
+              </button>
+            </div>
+            <form *ngIf="editingTreeName" class="tree-name-editor" (ngSubmit)="saveTreeName()">
+              <input name="treeName" maxlength="80" [(ngModel)]="treeNameDraft" (blur)="saveTreeName()" aria-label="Family tree name">
+            </form>
           </div>
 
-          <div class="grid grid-cols-2 gap-4">
+          <div class="tree-stage" [style.transform]="'translate(' + position.x + 'px, ' + position.y + 'px) scale(' + scale + ')'">
+            <app-tree-node
+              *ngIf="treeData"
+              [node]="treeData"
+              [isRoot]="true"
+              [maxRenderDepth]="maxRenderDepth"
+              [selectedPersonId]="selectedPersonId"
+              [collapsedNodeIds]="collapsedNodeIds"
+              (onSelect)="selectPerson($event, false)"
+              (onEdit)="openPersonForm($event, 'edit')"
+              (onAddChild)="openPersonForm($event, 'add_child')"
+              (onAddSpouse)="openPersonForm($event, 'add_spouse')"
+              (onDelete)="deleteNode($event)"
+              (onToggleBranch)="toggleBranch($event)"
+              (onRevealMore)="revealMoreGenerations()">
+            </app-tree-node>
+          </div>
+
+          <div class="canvas-controls" aria-label="Canvas controls">
+            <button type="button" (click)="zoomOut()" aria-label="Zoom out"><i-lucide name="zoom-out" [size]="16"></i-lucide></button>
+            <span>{{ getZoomPercentage() }}%</span>
+            <button type="button" (click)="zoomIn()" aria-label="Zoom in"><i-lucide name="zoom-in" [size]="16"></i-lucide></button>
+            <span class="control-divider"></span>
+            <button type="button" (click)="resetViewport()" aria-label="Center tree" title="Center tree"><i-lucide name="focus" [size]="16"></i-lucide></button>
+          </div>
+
+          <button type="button" class="load-generations" (click)="revealMoreGenerations()">
+            <i-lucide name="layers-3" [size]="15"></i-lucide>
+            Load more generations
+          </button>
+
+          <div class="canvas-help">
+            <span><i></i> Family line</span>
+            <span><i class="partner"></i> Partner</span>
+            <small>Drag to pan · Scroll to zoom · Click a person for their story</small>
+          </div>
+        </section>
+      </ng-container>
+
+      <ng-template #timelineView>
+        <section class="timeline-workspace">
+          <div class="timeline-hero">
             <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
-              <input 
-                required
-                type="number" 
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="25"
-                [(ngModel)]="formData.age"
-                name="age">
+              <p class="section-kicker">Across generations</p>
+              <h1>Family timeline</h1>
+              <p>Follow births, partnerships, migrations and memories in chronological order.</p>
             </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
-              <select 
-                class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
-                [(ngModel)]="formData.gender"
-                name="gender">
-                <option value="male">Male</option>
-                <option value="female">Female</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
+            <span class="timeline-count">{{ filteredTimeline.length }} events</span>
           </div>
 
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Current Location</label>
-            <div class="relative">
-              <i-lucide name="map-pin" [size]="16" class="absolute left-3 top-3 text-gray-400"></i-lucide>
-              <input 
-                type="text" 
-                class="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"
-                placeholder="e.g. New York, USA"
-                [(ngModel)]="formData.location"
-                name="location">
-            </div>
-          </div>
-
-          <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-            <span class="text-sm font-medium text-gray-700">Is Alive?</span>
-            <label class="relative inline-flex items-center cursor-pointer">
-              <input 
-                type="checkbox" 
-                class="sr-only peer"
-                [(ngModel)]="formData.isAlive"
-                name="isAlive">
-              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+          <div class="timeline-filters">
+            <label class="timeline-search">
+              <i-lucide name="search" [size]="15"></i-lucide>
+              <input type="search" placeholder="Search people or events" [(ngModel)]="timelineQuery" (ngModelChange)="applyTimelineFilters()">
             </label>
+            <select [(ngModel)]="timelineType" (ngModelChange)="applyTimelineFilters()">
+              <option *ngFor="let option of timelineTypeOptions" [ngValue]="option.value">{{ option.label }}</option>
+            </select>
+            <input type="text" placeholder="Place" aria-label="Timeline location" [(ngModel)]="timelineLocation" (ngModelChange)="applyTimelineFilters()">
+            <label class="date-filter"><span>From</span><input type="date" [(ngModel)]="timelineFrom" (ngModelChange)="applyTimelineFilters()"></label>
+            <label class="date-filter"><span>To</span><input type="date" [(ngModel)]="timelineTo" (ngModelChange)="applyTimelineFilters()"></label>
           </div>
 
-          <div class="pt-2">
-            <button 
-              type="submit"
-              class="w-full px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 shadow-sm active:scale-95 bg-indigo-600 text-white hover:bg-indigo-700 justify-center">
-              {{ actionType === 'edit' ? 'Save Changes' : 'Add Member' }}
+          <div *ngIf="filteredTimeline.length; else emptyTimeline" class="timeline-list">
+            <button
+              *ngFor="let event of filteredTimeline"
+              type="button"
+              class="timeline-event"
+              [attr.data-event-type]="event.type"
+              (click)="selectTimelineEntry(event)">
+              <span class="timeline-event__date">
+                <strong>{{ event.date | date:'yyyy' }}</strong>
+                <small>{{ event.date | date:'MMM d' }}</small>
+              </span>
+              <span class="timeline-event__marker"><i></i></span>
+              <span class="timeline-event__card">
+                <span class="event-type">{{ event.type.replace('_', ' ') }}</span>
+                <strong>{{ event.title }}</strong>
+                <span>{{ event.personName }}<ng-container *ngIf="event.place"> · {{ event.place }}</ng-container></span>
+                <p *ngIf="event.description">{{ event.description }}</p>
+                <small>{{ event.branchName }} · Generation {{ event.generation + 1 }}</small>
+              </span>
             </button>
           </div>
-        </form>
+          <ng-template #emptyTimeline>
+            <div class="timeline-empty">
+              <span class="timeline-empty__icon"><i-lucide name="calendar-days" [size]="30"></i-lucide></span>
+              <h2>Your family history will appear here</h2>
+              <p>Add a birth date or life event from any person’s profile to begin the timeline.</p>
+              <button type="button" (click)="setWorkspaceView('tree')">Return to the tree</button>
+            </div>
+          </ng-template>
+        </section>
+      </ng-template>
+    </main>
+
+    <app-person-profile
+      *ngIf="selectedPerson"
+      [person]="selectedPerson"
+      [relatives]="selectedRelatives"
+      [hints]="contextualHints"
+      (close)="closeProfile()"
+      (edit)="openPersonForm($event, 'edit')"
+      (addChild)="openPersonForm($event, 'add_child')"
+      (addSpouse)="openPersonForm($event, 'add_spouse')"
+      (addStory)="addStory($event)"
+      (addEvent)="addEvent($event)"
+      (photoSelected)="uploadProfilePhoto($event)"
+      (dismissHint)="dismissHint($event)"
+      (focusPerson)="focusRelative($event)">
+    </app-person-profile>
+  </div>
+</div>
+
+<div *ngIf="modalOpen" class="modal-backdrop" role="presentation" (mousedown)="$event.target === $event.currentTarget && closeModal()">
+  <section class="person-modal" role="dialog" aria-modal="true" aria-labelledby="person-modal-title">
+    <header class="modal-header">
+      <div>
+        <p class="section-kicker">{{ actionType === 'edit' ? 'Person profile' : 'New relationship' }}</p>
+        <h2 id="person-modal-title">{{ getModalTitle() }}</h2>
+      </div>
+      <button type="button" class="icon-button" (click)="closeModal()" aria-label="Close"><i-lucide name="x" [size]="18"></i-lucide></button>
+    </header>
+
+    <form (ngSubmit)="handleSubmit()" class="person-form">
+      <div class="form-section">
+        <div class="form-section__heading">
+          <span>Essentials</span>
+          <small>Start simple — every field can be changed later.</small>
+        </div>
+        <div class="form-grid">
+          <label class="field field--wide">
+            <span>Full name <b>*</b></span>
+            <input required type="text" name="name" placeholder="e.g. Anika Menon" [(ngModel)]="formData.name" autofocus>
+          </label>
+          <label class="field">
+            <span>Gender</span>
+            <select name="gender" [(ngModel)]="formData.gender">
+              <option [ngValue]="'female'">Female</option>
+              <option [ngValue]="'male'">Male</option>
+              <option [ngValue]="'other'">Non-binary / other</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Age</span>
+            <input type="number" min="0" max="130" name="age" placeholder="Optional" [(ngModel)]="formData.age">
+          </label>
+          <label class="field field--wide">
+            <span>Email <small>optional invitation</small></span>
+            <input type="email" name="email" placeholder="person@example.com" [(ngModel)]="formData.email">
+          </label>
+          <label class="field field--wide">
+            <span>Current location</span>
+            <div class="location-field">
+              <i-lucide name="map-pin" [size]="15"></i-lucide>
+              <input #locationInput type="text" name="location" autocomplete="off" placeholder="City, place or address" [(ngModel)]="formData.location">
+              <button type="button" (click)="openLocationInGoogleMaps()" [disabled]="!formData.location.trim()">Map</button>
+            </div>
+            <small class="field-help">{{ locationAutocompleteStatus }}</small>
+          </label>
+          <label class="living-toggle field--wide">
+            <span><strong>Living</strong><small>Turn off to add a death date.</small></span>
+            <input type="checkbox" name="isAlive" [(ngModel)]="formData.isAlive">
+            <i></i>
+          </label>
+        </div>
+      </div>
+
+      <div *ngIf="actionType !== 'edit'" class="relationship-section">
+        <label class="field" *ngIf="actionType === 'add_child'">
+          <span>Relationship to child</span>
+          <select name="parentRelationshipType" [(ngModel)]="formData.parentRelationshipType">
+            <option *ngFor="let option of parentRelationshipOptions" [ngValue]="option.value">{{ option.label }}</option>
+          </select>
+        </label>
+        <label class="field" *ngIf="actionType === 'add_spouse'">
+          <span>Relationship type</span>
+          <select name="partnerRelationshipType" [(ngModel)]="formData.partnerRelationshipType">
+            <option *ngFor="let option of partnerRelationshipOptions" [ngValue]="option.value">{{ option.label }}</option>
+          </select>
+        </label>
+        <label class="field" *ngIf="actionType === 'add_spouse'">
+          <span>Relationship began</span>
+          <input type="date" name="relationshipStartDate" [(ngModel)]="formData.relationshipStartDate">
+        </label>
+      </div>
+
+      <button type="button" class="advanced-toggle" (click)="advancedDetailsOpen = !advancedDetailsOpen" [attr.aria-expanded]="advancedDetailsOpen">
+        <span><i-lucide name="sparkles" [size]="15"></i-lucide> More profile details</span>
+        <i-lucide name="chevron-down" [size]="16" [class.rotate]="advancedDetailsOpen"></i-lucide>
+      </button>
+
+      <div *ngIf="advancedDetailsOpen" class="form-section advanced-fields">
+        <div class="form-grid">
+          <label class="field"><span>Birth date</span><input type="date" name="birthDate" [(ngModel)]="formData.birthDate"></label>
+          <label class="field" *ngIf="!formData.isAlive"><span>Death date</span><input type="date" name="deathDate" [(ngModel)]="formData.deathDate"></label>
+          <label class="field field--wide"><span>Birthplace</span><input type="text" name="birthPlace" placeholder="Town, city or country" [(ngModel)]="formData.birthPlace"></label>
+          <label class="field field--wide"><span>Alternate names</span><input type="text" name="alternateNames" placeholder="Nickname, maiden name (comma separated)" [(ngModel)]="formData.alternateNames"></label>
+          <label class="field field--wide"><span>Tags</span><input type="text" name="tags" placeholder="e.g. Rao branch, Veteran" [(ngModel)]="formData.tags"></label>
+          <label class="field field--wide"><span>Photo URL</span><input type="url" name="photoUrl" placeholder="Or add a photo from the profile panel" [(ngModel)]="formData.photoUrl"></label>
+          <label class="field field--wide"><span>Notes</span><textarea name="notes" rows="4" placeholder="A few details worth remembering…" [(ngModel)]="formData.notes"></textarea></label>
+          <ng-container *ngIf="actionType === 'edit' && currentNode?.type === 'spouse'">
+            <label class="field"><span>Partnership type</span><select name="editPartnerRelationship" [(ngModel)]="formData.partnerRelationshipType"><option *ngFor="let option of partnerRelationshipOptions" [ngValue]="option.value">{{ option.label }}</option></select></label>
+            <label class="field"><span>Relationship ended</span><input type="date" name="relationshipEndDate" [(ngModel)]="formData.relationshipEndDate"></label>
+          </ng-container>
+        </div>
+      </div>
+
+      <footer class="modal-footer">
+        <span><i-lucide name="shield-check" [size]="14"></i-lucide> Saved as one undoable change</span>
+        <div>
+          <button type="button" class="button-secondary" (click)="closeModal()">Cancel</button>
+          <button type="submit" class="button-primary" [disabled]="!formData.name.trim()">
+            {{ actionType === 'edit' ? 'Save changes' : 'Add to tree' }}
+          </button>
+        </div>
+      </footer>
+    </form>
+  </section>
+</div>
+
+<div *ngIf="toolsOpen" class="modal-backdrop tools-backdrop" role="presentation">
+  <section class="tools-modal" role="dialog" aria-modal="true" aria-labelledby="tools-title">
+    <header class="modal-header tools-header">
+      <div>
+        <p class="section-kicker">Power tools</p>
+        <h2 id="tools-title">Manage a growing tree</h2>
+      </div>
+      <button type="button" class="icon-button" (click)="closeTools()" aria-label="Close"><i-lucide name="x" [size]="18"></i-lucide></button>
+    </header>
+    <nav class="tools-tabs" aria-label="Advanced tools">
+      <button type="button" [class.active]="toolsTab === 'import'" (click)="toolsTab = 'import'">
+        <i-lucide name="file-up" [size]="15"></i-lucide> Import & validate
+      </button>
+      <button type="button" [class.active]="toolsTab === 'bulk'" (click)="toolsTab = 'bulk'">
+        <i-lucide name="list-checks" [size]="15"></i-lucide> Bulk edit
+      </button>
+    </nav>
+
+    <div *ngIf="toolsTab === 'import'" class="tools-content import-tool">
+      <div class="import-intro">
+        <div>
+          <h3>Bring an existing tree with confidence</h3>
+          <p>GEDCOM files are parsed locally. Nothing changes until you review the people, families and warnings below.</p>
+        </div>
+        <span class="privacy-badge"><i-lucide name="shield-check" [size]="14"></i-lucide> Local preview</span>
+      </div>
+
+      <label class="file-drop">
+        <input type="file" accept=".ged,.gedcom,.json" (change)="handleImportFile($event)">
+        <span class="file-drop__icon"><i-lucide name="upload-cloud" [size]="25"></i-lucide></span>
+        <strong>{{ importFileName || 'Choose a GEDCOM or backup file' }}</strong>
+        <span>GEDCOM (.ged) is previewed and validated · JSON restores a My Family backup</span>
+      </label>
+
+      <p *ngIf="importError" class="import-error"><i-lucide name="circle-alert" [size]="15"></i-lucide>{{ importError }}</p>
+
+      <ng-container *ngIf="importPreview as preview">
+        <div class="preview-metrics">
+          <div><strong>{{ preview.peopleCount }}</strong><span>People found</span></div>
+          <div><strong>{{ preview.familyCount }}</strong><span>Family groups</span></div>
+          <div><strong>{{ preview.warnings.length }}</strong><span>Warnings</span></div>
+          <div><strong>{{ preview.duplicates.length }}</strong><span>Possible duplicates</span></div>
+        </div>
+        <div class="preview-columns">
+          <section>
+            <h4>Import root</h4>
+            <div class="preview-root"><span>{{ preview.tree.name.charAt(0) }}</span><div><strong>{{ preview.tree.name }}</strong><small>{{ preview.tree.children.length }} direct descendants</small></div></div>
+            <h4 *ngIf="preview.unsupportedTags.length">Unsupported fields</h4>
+            <div class="tag-list" *ngIf="preview.unsupportedTags.length"><span *ngFor="let tag of preview.unsupportedTags.slice(0, 12)">{{ tag }}</span></div>
+          </section>
+          <section>
+            <h4>Review before import</h4>
+            <ul class="warning-list" *ngIf="preview.warnings.length; else noWarnings">
+              <li *ngFor="let warning of preview.warnings.slice(0, 8)"><i-lucide name="triangle-alert" [size]="14"></i-lucide><span>{{ warning }}</span></li>
+            </ul>
+            <ng-template #noWarnings><p class="preview-ok"><i-lucide name="circle-check" [size]="16"></i-lucide>No structural issues found.</p></ng-template>
+            <ul class="duplicate-list" *ngIf="preview.duplicates.length">
+              <li *ngFor="let duplicate of preview.duplicates.slice(0, 5)"><strong>{{ duplicate.label }}</strong><span>{{ duplicate.reason }}</span></li>
+            </ul>
+          </section>
+        </div>
+        <footer class="tools-footer">
+          <p>Automatic merging is intentionally disabled. Import replaces the current tree and creates an undo step.</p>
+          <button type="button" class="button-primary" (click)="confirmGedcomImport()">Import {{ preview.peopleCount }} people</button>
+        </footer>
+      </ng-container>
+    </div>
+
+    <div *ngIf="toolsTab === 'bulk'" class="tools-content bulk-tool">
+      <div class="bulk-grid">
+        <section class="bulk-people">
+          <div class="bulk-section-header">
+            <div><h3>Select people</h3><p>Showing current search results</p></div>
+            <div><button type="button" (click)="selectAllFilteredForBulk()">Select all</button><button type="button" (click)="clearBulkSelection()">Clear</button></div>
+          </div>
+          <div class="bulk-list">
+            <label *ngFor="let entry of filteredPeople.slice(0, 150)" [class.selected]="bulkSelectedIds.has(entry.node.id)">
+              <input type="checkbox" [checked]="bulkSelectedIds.has(entry.node.id)" (change)="toggleBulkSelection(entry.node.id)">
+              <span>{{ entry.node.name.charAt(0) }}</span>
+              <div><strong>{{ entry.node.name }}</strong><small>{{ entry.node.location || 'Location missing' }} · G{{ entry.generation + 1 }}</small></div>
+            </label>
+          </div>
+        </section>
+        <section class="bulk-changes">
+          <span class="selection-count">{{ bulkSelectedIds.size }} selected</span>
+          <h3>Choose the changes</h3>
+          <p>Blank fields are left untouched. All updates are grouped into one undoable action.</p>
+          <label class="field"><span>Set location</span><input type="text" placeholder="e.g. Chennai, India" [(ngModel)]="bulkLocation"></label>
+          <label class="field"><span>Add tags</span><input type="text" placeholder="Comma separated" [(ngModel)]="bulkTags"></label>
+          <div class="surname-replace">
+            <label class="field"><span>Replace surname</span><input type="text" placeholder="Old surname" [(ngModel)]="bulkSurnameFrom"></label>
+            <i-lucide name="arrow-right" [size]="16"></i-lucide>
+            <label class="field"><span>With</span><input type="text" placeholder="New surname" [(ngModel)]="bulkSurnameTo"></label>
+          </div>
+          <div class="bulk-note"><i-lucide name="info" [size]="16"></i-lucide><span>Updates are validated in memory, then cloud sync is debounced to avoid one write per person.</span></div>
+          <button type="button" class="button-primary bulk-apply" (click)="applyBulkEdit()" [disabled]="!bulkSelectedIds.size">Preview & apply changes</button>
+        </section>
       </div>
     </div>
-  </div>
+  </section>
+</div>
 
+<div *ngIf="toastMessage" class="toast" role="status" aria-live="polite">
+  <i-lucide name="circle-check" [size]="17"></i-lucide>
+  {{ toastMessage }}
 </div>

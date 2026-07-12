@@ -20,6 +20,7 @@
     "@angular/router": "^18.2.0",
     "cytoscape": "^3.33.1",
     "d3": "^7.9.0",
+    "firebase": "^12.16.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^3.0.4",
     "lucide-angular": "^0.554.0",
