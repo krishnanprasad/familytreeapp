@@ -23,6 +23,32 @@
             "value": "public,max-age=0,must-revalidate"
           }
         ]
+      },
+      {
+        "source": "/i/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "private,no-store"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
+      },
+      {
+        "source": "/invite-image/**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "private,no-store"
+          },
+          {
+            "key": "Referrer-Policy",
+            "value": "no-referrer"
+          }
+        ]
       }
     ],
     "rewrites": [
