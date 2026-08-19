@@ -1,0 +1,63 @@
+<main class="invite-page">
+  <div class="invite-glow invite-glow--one" aria-hidden="true"></div>
+  <div class="invite-glow invite-glow--two" aria-hidden="true"></div>
+
+  <header class="invite-brand" aria-label="My Family">
+    <span class="invite-brand__mark" aria-hidden="true"><i></i><i></i><i></i></span>
+    <strong>My Family</strong>
+  </header>
+
+  <section class="invite-card" [class.invite-card--unavailable]="!isAvailable" aria-labelledby="invite-title" aria-live="polite">
+    <ng-container *ngIf="isAvailable; else unavailableInvite">
+      <div class="invite-kicker"><i-lucide name="lock-keyhole" [size]="15"></i-lucide> Private family invitation</div>
+      <h1 id="invite-title">{{ title }}</h1>
+      <p class="invite-lead">
+        {{ canEdit
+          ? 'Your branch is already selected. Add the relatives you remember without searching through the full tree.'
+          : 'Open the selected family tree securely and see the people already remembered.' }}
+      </p>
+
+      <div class="invite-branch" aria-label="Preview of the selected family branch">
+        <svg viewBox="0 0 520 290" preserveAspectRatio="none" aria-hidden="true">
+          <path d="M260 86 C260 146 140 146 124 216"></path>
+          <path d="M260 86 C260 146 380 146 396 216"></path>
+        </svg>
+        <article class="invite-node invite-node--root">
+          <span>{{ branchName.charAt(0).toUpperCase() || 'F' }}</span>
+          <div><strong>{{ branchName }}</strong><small>Selected branch</small></div>
+        </article>
+        <article class="invite-node invite-node--left">
+          <span><i-lucide name="plus" [size]="17"></i-lucide></span>
+          <div><strong>Add relative</strong><small>Parent, partner or child</small></div>
+        </article>
+        <article class="invite-node invite-node--right">
+          <span><i-lucide name="plus" [size]="17"></i-lucide></span>
+          <div><strong>Add relative</strong><small>Continue this branch</small></div>
+        </article>
+      </div>
+
+      <ul class="invite-permissions" aria-label="Invitation permissions">
+        <li><i-lucide name="circle-check" [size]="17"></i-lucide><span><strong>{{ canEdit ? 'Add and update relatives' : 'View the selected family tree' }}</strong><small>Your access stays limited to this invitation.</small></span></li>
+        <li *ngIf="canEdit"><i-lucide name="shield-check" [size]="17"></i-lucide><span><strong>Existing relatives cannot be deleted</strong><small>The owner keeps control of the family record.</small></span></li>
+      </ul>
+
+      <button class="invite-primary" type="button" [disabled]="busy || !authReady" (click)="join.emit()">
+        <span>{{ primaryLabel }}</span>
+        <i-lucide *ngIf="!busy" name="arrow-right" [size]="20"></i-lucide>
+        <span *ngIf="busy" class="invite-spinner" aria-hidden="true"></span>
+      </button>
+      <p class="invite-security"><i-lucide name="shield-check" [size]="15"></i-lucide>{{ expiryLabel }} · No password to remember</p>
+      <p *ngIf="error" class="invite-error" role="alert"><i-lucide name="circle-alert" [size]="17"></i-lucide>{{ error }}</p>
+    </ng-container>
+
+    <ng-template #unavailableInvite>
+      <div class="invite-unavailable-icon"><i-lucide name="circle-alert" [size]="28"></i-lucide></div>
+      <p class="invite-kicker">Private family invitation</p>
+      <h1 id="invite-title">{{ unavailableTitle }}</h1>
+      <p class="invite-lead">{{ unavailableMessage }}</p>
+      <button type="button" class="invite-secondary" (click)="leave.emit()">Go to My Family</button>
+    </ng-template>
+  </section>
+
+  <footer class="invite-footer">Only the selected account receives access. Invitation secrets are never stored in the page history after joining.</footer>
+</main>

@@ -1,0 +1,63 @@
+{
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs22"
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "hosting": {
+    "site": "familytreeapp-d7c68",
+    "public": "dist/myfamily/browser",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "public,max-age=0,must-revalidate"
+          }
+        ]
+      }
+    ],
+    "rewrites": [
+      {
+        "source": "/i/**",
+        "function": {
+          "functionId": "sharePreview",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/invite-image/**",
+        "function": {
+          "functionId": "inviteImage",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/t/**",
+        "function": {
+          "functionId": "sharePreview",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "/b/**",
+        "function": {
+          "functionId": "sharePreview",
+          "region": "us-central1"
+        }
+      },
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ]
+  }
+}

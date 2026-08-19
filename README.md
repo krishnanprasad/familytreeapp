@@ -213,6 +213,27 @@ Your family tree is automatically saved to `localStorage` with the key `my-famil
 | Safari 14+ | ✅ Full |
 | Edge 90+ | ✅ Full |
 
+## Family Assistant Setup
+
+The in-app Family Assistant turns natural-language requests into a structured change plan. The user reviews the plan before it is applied, and all accepted operations are stored as one undoable tree update.
+
+The OpenAI key stays in a Firebase Functions secret and is never included in the Angular bundle. The callable function also requires Firebase Authentication.
+
+```powershell
+firebase functions:secrets:set OPENAI_API_KEY
+firebase deploy --only functions:familyTreeAssistant
+```
+
+The server uses the OpenAI Responses API with `gpt-5.6-terra` by default. Set the server-side `OPENAI_MODEL` environment variable to use another compatible model; do not put the OpenAI key in `src/` or any browser environment file.
+
+Example requests:
+
+- `Add Priya as Arun's daughter, born 12 March 1994`
+- `Change Meena's location to Chennai`
+- `Delete the person named Ravi`
+
+Deletes receive an additional confirmation. Ambiguous names produce a clarification question instead of a mutation.
+
 ## Troubleshooting
 
 ### Q: My data disappeared!

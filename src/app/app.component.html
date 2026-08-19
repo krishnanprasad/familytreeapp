@@ -1,11 +1,23 @@
+<app-invite-landing
+  *ngIf="inviteLandingVisible"
+  [share]="inviteShare"
+  [status]="inviteStatus"
+  [signedIn]="isSignedIn"
+  [authReady]="isAuthReady"
+  [busy]="inviteBusy || isAuthBusy"
+  [error]="inviteError"
+  (join)="joinSecureInvite()"
+  (leave)="leaveSecureInvite()">
+</app-invite-landing>
+
 <app-onboarding
-  *ngIf="onboardingVisible"
+  *ngIf="onboardingVisible && !inviteLandingVisible"
   (complete)="completeGuidedTree($event)"
   (manual)="startManualTree()"
   (importRequested)="startOnboardingImport()">
 </app-onboarding>
 
-<div class="app-shell">
+<div class="app-shell" *ngIf="!inviteLandingVisible">
   <header class="app-header">
     <div class="brand-block">
       <button type="button" class="rail-toggle" (click)="leftRailOpen = !leftRailOpen" aria-label="Toggle family explorer">
@@ -41,18 +53,40 @@
         </button>
       </div>
 
-      <button type="button" class="sync-pill" [class.sync-pill--error]="syncStatus === 'error'" (click)="downloadTree()" [title]="lastAction" [attr.aria-label]="syncLabel">
+      <button type="button" class="sync-pill" [class.sync-pill--error]="syncStatus === 'error'" (click)="saveNow()" [disabled]="isReadOnlyTree" [title]="lastAction" [attr.aria-label]="syncLabel">
         <i-lucide [name]="syncStatus === 'synced' ? 'cloud' : (syncStatus === 'error' ? 'circle-alert' : 'save')" [size]="15"></i-lucide>
         <span>{{ syncLabel }}</span>
       </button>
 
-      <button type="button" class="header-button header-button--subtle" aria-label="Import family tree" (click)="openTools('import')">
+      <button type="button" class="header-button header-button--save" aria-label="Save family tree to cloud" (click)="saveNow()" [disabled]="isReadOnlyTree">
+        <i-lucide name="save" [size]="16"></i-lucide>
+        <span>Save</span>
+      </button>
+      <button type="button" class="header-button header-button--subtle" aria-label="Open my trees" (click)="openMyTrees()">
+        <i-lucide name="layers-3" [size]="16"></i-lucide>
+        <span>My trees</span>
+      </button>
+      <button type="button" class="header-button header-button--subtle" aria-label="Create new family tree" (click)="createNewTree()">
+        <i-lucide name="git-fork" [size]="16"></i-lucide>
+        <span>New tree</span>
+      </button>
+      <button type="button" class="header-button header-button--subtle" aria-label="Open share and access settings" (click)="openShareDialog()" [disabled]="!canShareCurrentTree">
+        <i-lucide name="link-2" [size]="16"></i-lucide>
+        <span>Share & access</span>
+      </button>
+      <button type="button" class="header-button header-button--subtle" aria-label="Import family tree" (click)="openTools('import')" [disabled]="isReadOnlyTree">
         <i-lucide name="file-up" [size]="16"></i-lucide>
         <span>Import</span>
       </button>
-      <button type="button" class="header-button header-button--primary" aria-label="Add person" (click)="treeData && openPersonForm(treeData, 'add_child')">
+      <span class="access-badge" [class.public]="currentVisibility === 'public'">{{ visibilityLabel(currentVisibility) }}</span>
+      <span class="access-badge" [ngClass]="treeRoleBadgeClass(currentRole)">{{ currentTreeRoleLabel }}</span>
+      <button type="button" class="header-button header-button--primary" aria-label="Add person" (click)="treeData && openPersonForm(treeData, 'add_child')" [disabled]="!canEditCurrentTree">
         <i-lucide name="plus" [size]="16"></i-lucide>
         <span>Add person</span>
+      </button>
+      <button *ngIf="currentVisibility === 'public' && !isSignedIn" type="button" class="header-button header-button--primary" aria-label="Create your own tree" (click)="createOwnTreeFromPublic()">
+        <i-lucide name="sparkles" [size]="16"></i-lucide>
+        <span>Create your own tree</span>
       </button>
 
       <ng-container *ngIf="user$ | async as user; else signedOut">
@@ -73,7 +107,82 @@
     </div>
   </header>
 
+  <nav class="mobile-action-bar" aria-label="Family tree actions">
+    <button type="button" class="mobile-action" [class.active]="workspaceView === 'tree' && !familyHelperOpen" aria-label="Tree view" (click)="openMobileTab('tree')">
+      <i-lucide name="git-fork" [size]="19"></i-lucide>
+      <span>Tree</span>
+    </button>
+    <button type="button" class="mobile-action" [class.active]="workspaceView === 'list' && !familyHelperOpen" aria-label="People list" (click)="openMobileTab('people')">
+      <i-lucide name="users" [size]="19"></i-lucide>
+      <span>People</span>
+    </button>
+    <button type="button" class="mobile-action mobile-action--primary" aria-label="Add person" (click)="treeData && openPersonForm(treeData, 'add_child')" [disabled]="!canEditCurrentTree">
+      <i-lucide name="plus" [size]="21"></i-lucide>
+      <span>Add</span>
+    </button>
+    <button type="button" class="mobile-action" [class.active]="familyHelperOpen" aria-label="Open family helper" (click)="openMobileTab('helper')">
+      <i-lucide name="sparkles" [size]="19"></i-lucide>
+      <span>Helper</span>
+    </button>
+    <button type="button" class="mobile-action" [class.active]="mobileMoreOpen" aria-label="Open more family tree options" (click)="openMobileTab('more')">
+      <i-lucide name="menu" [size]="19"></i-lucide>
+      <span>More</span>
+    </button>
+  </nav>
+
+  <button
+    *ngIf="mobileMoreOpen"
+    type="button"
+    class="mobile-more-backdrop"
+    aria-label="Close more options"
+    (click)="closeMobileMore()">
+  </button>
+  <section *ngIf="mobileMoreOpen" class="mobile-more-sheet" role="dialog" aria-modal="true" aria-labelledby="mobile-more-title">
+    <header>
+      <div>
+        <span>Family tree</span>
+        <strong id="mobile-more-title">More options</strong>
+      </div>
+      <button type="button" (click)="closeMobileMore()" aria-label="Close more options">
+        <i-lucide name="x" [size]="21"></i-lucide>
+      </button>
+    </header>
+    <div class="mobile-more-grid">
+      <button type="button" (click)="openTimelineFromMobileMore()">
+        <i-lucide name="clock-3" [size]="22"></i-lucide>
+        <span><strong>Timeline</strong><small>Family events by date</small></span>
+      </button>
+      <button type="button" (click)="openMyTreesFromMobileMore()">
+        <i-lucide name="layers-3" [size]="22"></i-lucide>
+        <span><strong>My trees</strong><small>Open or create a tree</small></span>
+      </button>
+      <button type="button" (click)="reopenOnboardingFromMobileMore()">
+        <i-lucide name="sparkles" [size]="22"></i-lucide>
+        <span><strong>Guided setup</strong><small>Build your tree step by step</small></span>
+      </button>
+      <button type="button" (click)="openShareFromMobileMore()" [disabled]="!canShareCurrentTree">
+        <i-lucide name="share-2" [size]="22"></i-lucide>
+        <span><strong>Share & access</strong><small>Invite trusted family</small></span>
+      </button>
+      <button type="button" (click)="openImportFromMobileMore()" [disabled]="isReadOnlyTree">
+        <i-lucide name="file-up" [size]="22"></i-lucide>
+        <span><strong>Import</strong><small>GEDCOM or backup file</small></span>
+      </button>
+      <button type="button" (click)="saveNow(); closeMobileMore()" [disabled]="isReadOnlyTree">
+        <i-lucide name="cloud" [size]="22"></i-lucide>
+        <span><strong>{{ syncLabel }}</strong><small>Save this family tree</small></span>
+      </button>
+    </div>
+  </section>
+
   <div class="workspace">
+    <button
+      *ngIf="leftRailOpen"
+      type="button"
+      class="explorer-backdrop"
+      (click)="leftRailOpen = false"
+      aria-label="Close family explorer">
+    </button>
     <aside class="explorer" [class.explorer--closed]="!leftRailOpen">
       <div class="explorer__header">
         <div>
@@ -91,7 +200,7 @@
           type="search"
           placeholder="Name, alias, place or year"
           [(ngModel)]="searchQuery"
-          (ngModelChange)="applySearch()"
+          (ngModelChange)="queueSearch()"
           aria-label="Search family members">
         <button *ngIf="searchQuery" type="button" (click)="searchQuery = ''; applySearch()" aria-label="Clear search">
           <i-lucide name="x" [size]="13"></i-lucide>
@@ -101,7 +210,7 @@
       <div *ngIf="filtersOpen" class="filter-panel">
         <label>
           <span>Generation</span>
-          <select [(ngModel)]="searchGeneration" (ngModelChange)="applySearch()">
+          <select [(ngModel)]="searchGeneration" (ngModelChange)="queueSearch()">
             <option value="">Every generation</option>
             <option *ngFor="let generation of generationOptions" [value]="generation">
               {{ generation === 0 ? 'Root generation' : 'Generation ' + (generation + 1) }}
@@ -110,7 +219,7 @@
         </label>
         <label>
           <span>Relationship</span>
-          <select [(ngModel)]="searchRelationship" (ngModelChange)="applySearch()">
+          <select [(ngModel)]="searchRelationship" (ngModelChange)="queueSearch()">
             <option value="">Every relationship</option>
             <option value="biological_parent">Biological family</option>
             <option value="adoptive_parent">Adoptive family</option>
@@ -123,11 +232,11 @@
         </label>
         <label>
           <span>Location</span>
-          <input type="text" placeholder="Filter places" [(ngModel)]="searchLocation" (ngModelChange)="applySearch()">
+          <input type="text" placeholder="Filter places" [(ngModel)]="searchLocation" (ngModelChange)="queueSearch()">
         </label>
         <label>
           <span>Missing information</span>
-          <select [(ngModel)]="missingFilter" (ngModelChange)="applySearch()">
+          <select [(ngModel)]="missingFilter" (ngModelChange)="queueSearch()">
             <option value="">Show all profiles</option>
             <option value="birthDate">Missing birth date</option>
             <option value="location">Missing location</option>
@@ -145,7 +254,7 @@
 
       <div class="person-results" role="list">
         <button
-          *ngFor="let entry of filteredPeople"
+          *ngFor="let entry of filteredPeople; trackBy: trackByPersonEntry"
           type="button"
           role="listitem"
           class="person-result"
@@ -159,7 +268,7 @@
             <strong>{{ entry.node.name }}</strong>
             <small>
               {{ entry.node.birthDate ? entry.node.birthDate.slice(0, 4) : 'Year unknown' }}
-              <span *ngIf="entry.node.location"> · {{ entry.node.location }}</span>
+              <span *ngIf="entry.node.location"> - {{ entry.node.location }}</span>
             </small>
           </span>
           <span class="person-result__generation">G{{ entry.generation + 1 }}</span>
@@ -185,7 +294,7 @@
     </aside>
 
     <main class="main-workspace">
-      <ng-container *ngIf="workspaceView === 'tree'; else timelineView">
+      <ng-container *ngIf="workspaceView === 'tree'">
         <section
           #containerRef
           class="tree-canvas"
@@ -202,12 +311,22 @@
             <span class="canvas-heading__eyebrow">{{ lastAction }}</span>
             <div *ngIf="!editingTreeName" class="tree-name-display">
               <strong>{{ treeName }}</strong>
-              <button type="button" (click)="startEditingTreeName()" aria-label="Rename family tree" title="Rename tree">
+              <span *ngIf="isComputerGeneratedTree" class="computer-generated-tree-badge">Computer Generated</span>
+              <button *ngIf="canEditCurrentTree" type="button" (click)="startEditingTreeName()" aria-label="Rename family tree" title="Rename tree">
                 <i-lucide name="pencil" [size]="12"></i-lucide>
               </button>
             </div>
             <form *ngIf="editingTreeName" class="tree-name-editor" (ngSubmit)="saveTreeName()">
               <input name="treeName" maxlength="80" [(ngModel)]="treeNameDraft" (blur)="saveTreeName()" aria-label="Family tree name">
+            </form>
+            <div *ngIf="!editingTreeOwnerName" class="tree-owner-display">
+              <span>Owner: {{ treeOwnerName }}</span>
+              <button *ngIf="canEditCurrentTree" type="button" (click)="startEditingTreeOwnerName()" aria-label="Edit tree owner" title="Edit owner">
+                <i-lucide name="pencil" [size]="11"></i-lucide>
+              </button>
+            </div>
+            <form *ngIf="editingTreeOwnerName" class="tree-owner-editor" (ngSubmit)="saveTreeOwnerName()">
+              <input name="treeOwnerName" maxlength="80" [(ngModel)]="treeOwnerNameDraft" (blur)="saveTreeOwnerName()" aria-label="Family tree owner">
             </form>
           </div>
 
@@ -219,14 +338,21 @@
               [maxRenderDepth]="maxRenderDepth"
               [selectedPersonId]="selectedPersonId"
               [collapsedNodeIds]="collapsedNodeIds"
+              [expandedBranchIds]="expandedBranchIds"
               (onSelect)="selectPerson($event, false)"
               (onEdit)="openPersonForm($event, 'edit')"
               (onAddChild)="openPersonForm($event, 'add_child')"
               (onAddSpouse)="openPersonForm($event, 'add_spouse')"
               (onDelete)="deleteNode($event)"
               (onToggleBranch)="toggleBranch($event)"
-              (onRevealMore)="revealMoreGenerations()">
+              (onRevealBranch)="revealBranch($event)">
             </app-tree-node>
+          </div>
+
+          <div class="mobile-canvas-guide" aria-hidden="true">
+            <i-lucide name="move-horizontal" [size]="15"></i-lucide>
+            <span>Swipe to explore</span>
+            <small>Tap a person to open</small>
           </div>
 
           <div class="canvas-controls" aria-label="Canvas controls">
@@ -235,6 +361,7 @@
             <button type="button" (click)="zoomIn()" aria-label="Zoom in"><i-lucide name="zoom-in" [size]="16"></i-lucide></button>
             <span class="control-divider"></span>
             <button type="button" (click)="resetViewport()" aria-label="Center tree" title="Center tree"><i-lucide name="focus" [size]="16"></i-lucide></button>
+            <button type="button" class="canvas-controls__performance" (click)="performancePanelOpen = !performancePanelOpen" [attr.aria-pressed]="performancePanelOpen" aria-label="Toggle performance metrics" title="Performance metrics"><i-lucide name="activity" [size]="16"></i-lucide></button>
           </div>
 
           <button type="button" class="load-generations" (click)="revealMoreGenerations()">
@@ -242,15 +369,119 @@
             Load more generations
           </button>
 
+          <aside *ngIf="publicSharePromptVisible && currentVisibility === 'public' && !isSignedIn" class="public-viewer-cta" aria-label="Public family tree options">
+            <button type="button" class="public-viewer-cta__close" (click)="dismissPublicSharePrompt()" aria-label="Continue viewing">
+              <i-lucide name="x" [size]="15"></i-lucide>
+            </button>
+            <div class="public-viewer-cta__mark" aria-hidden="true">
+              <i-lucide name="git-fork" [size]="18"></i-lucide>
+            </div>
+            <div class="public-viewer-cta__copy">
+              <p class="section-kicker">Public family tree</p>
+              <h2>{{ treeName }}</h2>
+              <p>You are viewing this tree in read-only mode.</p>
+            </div>
+            <div class="public-viewer-cta__actions">
+              <button type="button" class="button-primary" (click)="createOwnTreeFromPublic()">Create your own tree</button>
+              <button type="button" class="button-secondary" (click)="signInFromPublicPrompt()">Sign in</button>
+              <button type="button" class="button-plain" (click)="dismissPublicSharePrompt()">Continue viewing</button>
+            </div>
+          </aside>
+
+          <aside *ngIf="performancePanelOpen" class="performance-panel" aria-label="Performance metrics">
+            <div>
+              <span>Total people</span>
+              <strong>{{ performanceSnapshot.totalPeople }}</strong>
+            </div>
+            <div>
+              <span>Rendered now</span>
+              <strong>{{ performanceSnapshot.renderedPeople }}</strong>
+            </div>
+            <div>
+              <span>Deferred</span>
+              <strong>{{ performanceSnapshot.hiddenPeople }}</strong>
+            </div>
+            <div>
+              <span>Search</span>
+              <strong>{{ performanceSnapshot.searchMs | number:'1.0-1' }} ms</strong>
+            </div>
+            <div>
+              <span>State rebuild</span>
+              <strong>{{ performanceSnapshot.derivedStateMs | number:'1.0-1' }} ms</strong>
+            </div>
+            <div>
+              <span>Viewport</span>
+              <strong>{{ performanceSnapshot.viewportMs | number:'1.0-1' }} ms</strong>
+            </div>
+            <small>Measured {{ performanceSnapshot.lastMeasuredAt }} - Depth {{ performanceSnapshot.maxRenderDepth + 1 }} generations</small>
+          </aside>
+
           <div class="canvas-help">
             <span><i></i> Family line</span>
             <span><i class="partner"></i> Partner</span>
-            <small>Drag to pan · Scroll to zoom · Click a person for their story</small>
+            <small>Drag to pan - Scroll to zoom - Click a person for their story</small>
           </div>
         </section>
       </ng-container>
 
-      <ng-template #timelineView>
+      <section *ngIf="workspaceView === 'list'" class="mobile-family-list" aria-labelledby="mobile-family-list-title">
+        <header class="mobile-family-list__header">
+          <div>
+            <p class="section-kicker">Your family</p>
+            <h1 id="mobile-family-list-title">People</h1>
+            <span>{{ filteredPeople.length }} {{ filteredPeople.length === 1 ? 'person' : 'people' }}</span>
+          </div>
+          <button type="button" (click)="treeData && openPersonForm(treeData, 'add_child')" [disabled]="!canEditCurrentTree">
+            <i-lucide name="user-round-plus" [size]="20"></i-lucide>
+            Add relative
+          </button>
+        </header>
+
+        <label class="mobile-family-search">
+          <i-lucide name="search" [size]="20"></i-lucide>
+          <input
+            type="search"
+            placeholder="Search by name, place or year"
+            [(ngModel)]="searchQuery"
+            (ngModelChange)="queueSearch()"
+            aria-label="Search people in this family tree">
+          <button *ngIf="searchQuery" type="button" (click)="searchQuery = ''; applySearch()" aria-label="Clear people search">
+            <i-lucide name="x" [size]="18"></i-lucide>
+          </button>
+        </label>
+
+        <div *ngIf="filteredPeople.length; else emptyMobilePeople" class="mobile-family-cards">
+          <button
+            *ngFor="let entry of filteredPeople; trackBy: trackByPersonEntry"
+            type="button"
+            class="mobile-family-card"
+            (click)="selectPersonFromMobileList(entry.node)">
+            <span class="mobile-family-card__avatar" [class.mobile-family-card__avatar--photo]="entry.node.photoUrl">
+              <img *ngIf="entry.node.photoUrl" [src]="entry.node.photoUrl" alt="" loading="lazy">
+              <span *ngIf="!entry.node.photoUrl">{{ entry.node.name.charAt(0) || '?' }}</span>
+            </span>
+            <span class="mobile-family-card__copy">
+              <strong>{{ entry.node.name }}</strong>
+              <span>{{ mobileRelationshipLabel(entry) }}</span>
+              <small>
+                {{ entry.node.birthDate ? entry.node.birthDate.slice(0, 4) : (entry.node.age ? entry.node.age + ' years' : 'Birth year not added') }}
+                <ng-container *ngIf="entry.node.location"> · {{ entry.node.location }}</ng-container>
+              </small>
+            </span>
+            <i-lucide name="chevron-right" [size]="21"></i-lucide>
+          </button>
+        </div>
+        <ng-template #emptyMobilePeople>
+          <div class="mobile-family-empty">
+            <i-lucide name="user-round-search" [size]="34"></i-lucide>
+            <strong>No matching people</strong>
+            <span>Try a shorter name or clear your search.</span>
+            <button type="button" (click)="searchQuery = ''; clearFilters()">Clear search</button>
+          </div>
+        </ng-template>
+      </section>
+
+      <ng-container *ngIf="workspaceView === 'timeline'">
         <section class="timeline-workspace">
           <div class="timeline-hero">
             <div>
@@ -289,9 +520,9 @@
               <span class="timeline-event__card">
                 <span class="event-type">{{ event.type.replace('_', ' ') }}</span>
                 <strong>{{ event.title }}</strong>
-                <span>{{ event.personName }}<ng-container *ngIf="event.place"> · {{ event.place }}</ng-container></span>
+                <span>{{ event.personName }}<ng-container *ngIf="event.place"> - {{ event.place }}</ng-container></span>
                 <p *ngIf="event.description">{{ event.description }}</p>
-                <small>{{ event.branchName }} · Generation {{ event.generation + 1 }}</small>
+                <small>{{ event.branchName }} - Generation {{ event.generation + 1 }}</small>
               </span>
             </button>
           </div>
@@ -304,7 +535,7 @@
             </div>
           </ng-template>
         </section>
-      </ng-template>
+      </ng-container>
     </main>
 
     <app-person-profile
@@ -312,8 +543,10 @@
       [person]="selectedPerson"
       [relatives]="selectedRelatives"
       [hints]="contextualHints"
+      [canAddParent]="canAddParent(selectedPerson)"
       (close)="closeProfile()"
       (edit)="openPersonForm($event, 'edit')"
+      (addParent)="openPersonForm($event, 'add_parent')"
       (addChild)="openPersonForm($event, 'add_child')"
       (addSpouse)="openPersonForm($event, 'add_spouse')"
       (addStory)="addStory($event)"
@@ -323,6 +556,266 @@
       (focusPerson)="focusRelative($event)">
     </app-person-profile>
   </div>
+</div>
+
+<div *ngIf="myTreesOpen" class="modal-backdrop tree-dashboard-backdrop" role="presentation">
+  <section class="tree-dashboard" role="dialog" aria-modal="true" aria-labelledby="my-trees-title">
+    <header class="modal-header">
+      <div>
+        <p class="section-kicker">My Trees</p>
+        <h2 id="my-trees-title">Choose a family tree</h2>
+      </div>
+      <div class="dashboard-actions">
+        <button type="button" class="button-secondary" (click)="createNewTree()">
+          <i-lucide name="plus" [size]="14"></i-lucide>
+          New tree
+        </button>
+        <button type="button" class="icon-button" (click)="closeMyTrees()" aria-label="Close"><i-lucide name="x" [size]="18"></i-lucide></button>
+      </div>
+    </header>
+
+    <ng-container *ngIf="isAuthReady; else myTreesAuthLoading">
+    <ng-container *ngIf="isSignedIn; else myTreesSignedOut">
+      <div class="tree-dashboard__body">
+        <div class="dashboard-intro">
+          <div>
+            <strong>{{ signedInUserLabel }}</strong>
+            <span>Created trees, co-owned trees, and trees shared with you appear here.</span>
+          </div>
+          <button type="button" class="button-secondary" (click)="refreshMyTrees()" [disabled]="treeListBusy">
+            {{ treeListBusy ? 'Refreshing...' : 'Refresh' }}
+          </button>
+        </div>
+
+        <div *ngIf="treeListBusy" class="tree-dashboard__loading" role="status" aria-live="polite">
+          <i-lucide name="loader-circle" [size]="22"></i-lucide>
+          <span>Loading your family trees...</span>
+        </div>
+
+        <ng-container *ngIf="!treeListBusy">
+        <section class="tree-section">
+          <h3>Created by me</h3>
+          <div *ngIf="createdTrees.length; else emptyCreatedTrees" class="tree-list-grid">
+            <button type="button" class="tree-list-card" *ngFor="let tree of createdTrees; trackBy: trackByTreeId" (click)="openTreeFromList(tree)">
+              <span class="tree-card-mark">{{ tree.treeName.charAt(0) }}</span>
+              <span class="tree-card-copy">
+                <strong>{{ tree.treeName }}</strong>
+                <small>{{ tree.personCount }} people - Updated {{ tree.updatedAtLabel | date:'mediumDate' }}</small>
+              </span>
+              <span class="tree-badges">
+                <i [ngClass]="treeRoleBadgeClass(tree.role)">{{ roleLabel(tree.role) }}</i>
+                <i [class.public]="tree.visibility === 'public'">{{ visibilityLabel(tree.visibility) }}</i>
+              </span>
+            </button>
+          </div>
+          <ng-template #emptyCreatedTrees>
+            <p class="empty-tree-message">No created trees yet. Start one when you are ready.</p>
+          </ng-template>
+        </section>
+
+        <section class="tree-section">
+          <h3>Co-owned</h3>
+          <div *ngIf="coOwnedTrees.length; else emptyCoOwnedTrees" class="tree-list-grid">
+            <button type="button" class="tree-list-card" *ngFor="let tree of coOwnedTrees; trackBy: trackByTreeId" (click)="openTreeFromList(tree)">
+              <span class="tree-card-mark">{{ tree.treeName.charAt(0) }}</span>
+              <span class="tree-card-copy">
+                <strong>{{ tree.treeName }}</strong>
+                <small>{{ tree.personCount }} people - Owner {{ tree.treeOwnerName }}</small>
+              </span>
+              <span class="tree-badges">
+                <i [ngClass]="treeRoleBadgeClass(tree.role)">{{ roleLabel(tree.role) }}</i>
+                <i [class.public]="tree.visibility === 'public'">{{ visibilityLabel(tree.visibility) }}</i>
+              </span>
+            </button>
+          </div>
+          <ng-template #emptyCoOwnedTrees>
+            <p class="empty-tree-message">No co-owned trees yet.</p>
+          </ng-template>
+        </section>
+
+        <section class="tree-section">
+          <h3>Shared with me</h3>
+          <div *ngIf="sharedTrees.length; else emptySharedTrees" class="tree-list-grid">
+            <button type="button" class="tree-list-card" *ngFor="let tree of sharedTrees; trackBy: trackByTreeId" (click)="openTreeFromList(tree)">
+              <span class="tree-card-mark">{{ tree.treeName.charAt(0) }}</span>
+              <span class="tree-card-copy">
+                <strong>{{ tree.branchRootName || tree.treeName }}</strong>
+                <small>{{ roleLabel(tree.role) }} - Owner {{ tree.treeOwnerName }}</small>
+              </span>
+              <span class="tree-badges">
+                <i [ngClass]="treeRoleBadgeClass(tree.role)">{{ roleLabel(tree.role) }}</i>
+                <i [class.public]="tree.visibility === 'public'">{{ visibilityLabel(tree.visibility) }}</i>
+              </span>
+            </button>
+          </div>
+          <ng-template #emptySharedTrees>
+            <p class="empty-tree-message">No shared trees yet. When family members invite you, they will appear here.</p>
+          </ng-template>
+        </section>
+        </ng-container>
+      </div>
+    </ng-container>
+    </ng-container>
+
+    <ng-template #myTreesAuthLoading>
+      <div class="tree-dashboard__signed-out">
+        <span class="tree-dashboard__icon"><i-lucide name="loader-circle" [size]="30"></i-lucide></span>
+        <h3>Checking your sign-in...</h3>
+        <p>Please wait while we confirm your Google account.</p>
+      </div>
+    </ng-template>
+
+    <ng-template #myTreesSignedOut>
+      <div class="tree-dashboard__signed-out">
+        <span class="tree-dashboard__icon"><i-lucide name="git-fork" [size]="30"></i-lucide></span>
+        <h3>Sign in to see your trees</h3>
+        <p>Your created, co-owned, and shared family trees are connected to your account.</p>
+        <button type="button" class="button-primary" (click)="signInWithGoogle()" [disabled]="isAuthBusy">
+          {{ isAuthBusy ? 'Continuing to Google...' : 'Sign in with Google' }}
+        </button>
+      </div>
+    </ng-template>
+  </section>
+</div>
+
+<div *ngIf="shareOpen" class="modal-backdrop share-backdrop" role="presentation">
+  <section class="share-modal" role="dialog" aria-modal="true" aria-labelledby="share-title">
+    <header class="modal-header">
+      <div>
+        <p class="section-kicker">Access control</p>
+        <h2 id="share-title">Share & access</h2>
+      </div>
+      <button type="button" class="icon-button" (click)="closeShareDialog()" aria-label="Close"><i-lucide name="x" [size]="18"></i-lucide></button>
+    </header>
+
+    <div class="share-content">
+      <section class="share-section">
+        <h3>Access type</h3>
+        <div class="share-mode-grid">
+          <button type="button" [class.active]="shareMode === 'invite'" (click)="shareMode = 'invite'; shareRole = shareScope === 'branch' ? 'branchEditor' : 'viewer'">
+            <strong>Private WhatsApp invite</strong>
+            <span>One relative can accept. No email needed.</span>
+          </button>
+          <button type="button" [class.active]="shareMode === 'public'" (click)="shareMode = 'public'; shareRole = shareScope === 'branch' ? 'branchViewer' : 'viewer'">
+            <strong>Public link</strong>
+            <span>Anyone with the link can view. Living people stay private.</span>
+          </button>
+        </div>
+      </section>
+
+      <section class="share-section">
+        <h3>Scope and role</h3>
+        <div class="share-form-grid">
+          <label class="field">
+            <span>Scope</span>
+            <select [(ngModel)]="shareScope" (ngModelChange)="onShareScopeChange()">
+              <option *ngFor="let option of shareScopeOptions" [ngValue]="option.value">{{ option.label }}</option>
+            </select>
+          </label>
+          <label class="field" *ngIf="shareScope === 'branch'">
+            <span>Branch starts at</span>
+            <select [(ngModel)]="shareSelectedPersonId" (ngModelChange)="onShareBranchPersonChange()">
+              <option *ngFor="let entry of personIndex; trackBy: trackByPersonEntry" [ngValue]="entry.node.id">{{ entry.node.name }}</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>Role</span>
+            <select [(ngModel)]="shareRole" [disabled]="shareMode === 'public'">
+              <ng-container *ngIf="shareScope === 'tree'; else branchRoleOptions">
+                <option *ngFor="let option of fullTreeShareRoleOptions" [ngValue]="option.value">{{ option.label }}</option>
+              </ng-container>
+              <ng-template #branchRoleOptions>
+                <option *ngFor="let option of branchShareRoleOptions" [ngValue]="option.value">{{ option.label }}</option>
+              </ng-template>
+            </select>
+          </label>
+        </div>
+        <p class="share-role-note" *ngIf="shareMode === 'invite' && shareRole === 'coOwner'">
+          Co-owners can add, edit, save, and invite people. Deleting family members still goes to the owner for approval.
+        </p>
+        <p class="share-role-note" *ngIf="shareMode === 'invite' && shareRole === 'branchEditor'">
+          Branch editors can add and update inside the selected branch. They cannot delete existing relatives, open other branches, or invite other people.
+        </p>
+      </section>
+
+      <div class="share-warning" *ngIf="shareMode === 'invite'">
+        <i-lucide name="lock-keyhole" [size]="16"></i-lucide>
+        <span>The secure link is single-use, expires after 7 days, and is displayed only once. Share it directly with the intended relative.</span>
+      </div>
+
+      <div class="share-warning" *ngIf="shareMode === 'public'">
+        <i-lucide name="shield-check" [size]="16"></i-lucide>
+        <span>Public viewers can open the tree without signing in, but living people's sensitive data is hidden.</span>
+      </div>
+
+      <button type="button" class="button-primary share-create" (click)="createShare()" [disabled]="shareBusy">
+        {{ shareBusy ? 'Creating...' : (shareMode === 'public' ? 'Create public link' : 'Create invite') }}
+      </button>
+
+      <section class="created-share" *ngIf="latestShareLink as share">
+        <div>
+          <span>{{ share.scope === 'branch' ? 'Branch link' : 'Tree link' }}</span>
+          <strong>{{ shareUrl(share) }}</strong>
+        </div>
+        <div class="created-share__actions">
+          <button type="button" (click)="copyShareLink(share)">Copy</button>
+          <button type="button" (click)="nativeShare(share)">Share</button>
+          <button type="button" class="share-whatsapp" (click)="whatsappShare(share)">WhatsApp</button>
+        </div>
+      </section>
+
+      <section class="share-section">
+        <div class="share-section-heading">
+          <div>
+            <h3>People with access</h3>
+            <p>Accepted members who can open this tree from My trees.</p>
+          </div>
+          <button type="button" (click)="refreshShareLinks()">Refresh</button>
+        </div>
+        <div *ngIf="shareAccess.length; else noShareAccess" class="share-access-list">
+          <article *ngFor="let access of shareAccess; trackBy: trackByAccessId" class="share-access-row">
+            <span class="share-access-avatar">{{ accessInitial(access) }}</span>
+            <div>
+              <strong>{{ accessDisplayName(access) }}</strong>
+              <span>{{ roleLabel(access.role) }} - {{ accessScopeLabel(access) }}</span>
+              <small>{{ accessUpdatedLabel(access) }}</small>
+            </div>
+            <i [ngClass]="treeRoleBadgeClass(access.role)">{{ roleLabel(access.role) }}</i>
+          </article>
+        </div>
+        <ng-template #noShareAccess>
+          <p class="empty-tree-message">No accepted members yet. The owner appears here after the tree is saved.</p>
+        </ng-template>
+      </section>
+
+      <section class="share-section">
+        <div class="share-section-heading">
+          <div>
+            <h3>Invite links</h3>
+            <p>Pending invites, accepted invites, and public links created for this tree.</p>
+          </div>
+        </div>
+        <div *ngIf="shareLinks.length; else noShareLinks" class="share-link-list">
+          <article *ngFor="let share of shareLinks; trackBy: trackByShareCode" class="share-link-row">
+            <div>
+              <strong>{{ share.recipientEmail || (share.visibility === 'public' ? 'Public link' : (share.branchRootName ? share.branchRootName + ' invite' : 'Private invite')) }}</strong>
+              <span>{{ share.scope === 'branch' ? 'Branch' : 'Full tree' }} - {{ roleLabel(share.role) }} - {{ share.status }}</span>
+              <small *ngIf="shareUrl(share); else hiddenSecureLink">{{ shareUrl(share) }}</small>
+              <ng-template #hiddenSecureLink><small>Secure link hidden after creation · create a new invite to resend</small></ng-template>
+            </div>
+            <div>
+              <button type="button" (click)="copyShareLink(share)" *ngIf="shareUrl(share)">Copy</button>
+              <button type="button" (click)="emailShare(share)" *ngIf="share.recipientEmail">Resend</button>
+              <button type="button" (click)="cancelShare(share.code)" *ngIf="share.status === 'pending' || share.status === 'active'">Cancel</button>
+            </div>
+          </article>
+        </div>
+        <ng-template #noShareLinks>
+          <p class="empty-tree-message">No shares yet. Create one above when you are ready.</p>
+        </ng-template>
+      </section>
+    </div>
+  </section>
 </div>
 
 <div *ngIf="modalOpen" class="modal-backdrop" role="presentation" (mousedown)="$event.target === $event.currentTarget && closeModal()">
@@ -335,7 +828,7 @@
       <button type="button" class="icon-button" (click)="closeModal()" aria-label="Close"><i-lucide name="x" [size]="18"></i-lucide></button>
     </header>
 
-    <form (ngSubmit)="handleSubmit()" class="person-form">
+    <form (ngSubmit)="handleSubmit()" class="person-form" novalidate (pointerdown)="focusPersonFormControl($event)">
       <div class="form-section">
         <div class="form-section__heading">
           <span>Essentials</span>
@@ -346,28 +839,91 @@
             <span>Full name <b>*</b></span>
             <input required type="text" name="name" placeholder="e.g. Anika Menon" [(ngModel)]="formData.name" autofocus>
           </label>
-          <label class="field">
+          <div class="field">
             <span>Gender</span>
-            <select name="gender" [(ngModel)]="formData.gender">
-              <option [ngValue]="'female'">Female</option>
-              <option [ngValue]="'male'">Male</option>
-              <option [ngValue]="'other'">Non-binary / other</option>
-            </select>
-          </label>
+            <div class="segmented-choice" role="radiogroup" aria-label="Gender">
+              <button
+                type="button"
+                [class.active]="formData.gender === Gender.FEMALE"
+                [attr.aria-checked]="formData.gender === Gender.FEMALE"
+                role="radio"
+                (click)="formData.gender = Gender.FEMALE">
+                Female
+              </button>
+              <button
+                type="button"
+                [class.active]="formData.gender === Gender.MALE"
+                [attr.aria-checked]="formData.gender === Gender.MALE"
+                role="radio"
+                (click)="formData.gender = Gender.MALE">
+                Male
+              </button>
+              <button
+                type="button"
+                [class.active]="formData.gender === Gender.OTHER"
+                [attr.aria-checked]="formData.gender === Gender.OTHER"
+                role="radio"
+                (click)="formData.gender = Gender.OTHER">
+                Other
+              </button>
+            </div>
+          </div>
           <label class="field">
             <span>Age</span>
-            <input type="number" min="0" max="130" name="age" placeholder="Optional" [(ngModel)]="formData.age">
+            <input type="text" inputmode="numeric" pattern="[0-9]*" maxlength="3" name="age" placeholder="Optional" [(ngModel)]="formData.age">
           </label>
           <label class="field field--wide">
             <span>Email <small>optional invitation</small></span>
-            <input type="email" name="email" placeholder="person@example.com" [(ngModel)]="formData.email">
+            <input type="email" inputmode="email" autocomplete="email" name="email" placeholder="person@example.com" [(ngModel)]="formData.email">
           </label>
           <label class="field field--wide">
             <span>Current location</span>
             <div class="location-field">
               <i-lucide name="map-pin" [size]="15"></i-lucide>
-              <input #locationInput type="text" name="location" autocomplete="off" placeholder="City, place or address" [(ngModel)]="formData.location">
+              <input
+                #locationInput
+                type="text"
+                name="location"
+                autocomplete="off"
+                placeholder="City, place or address"
+                aria-autocomplete="list"
+                [attr.aria-expanded]="locationSuggestionsOpen"
+                aria-controls="location-suggestions"
+                (focus)="onLocationInputFocus()"
+                (blur)="onLocationInputBlur()"
+                (keydown)="onLocationInputKeydown($event)"
+                [ngModel]="formData.location"
+                (ngModelChange)="onLocationInputChange($event)">
               <button type="button" (click)="openLocationInGoogleMaps()" [disabled]="!formData.location.trim()">Map</button>
+            </div>
+            <div
+              id="location-suggestions"
+              class="location-suggestions"
+              role="listbox"
+              *ngIf="locationSuggestionsOpen && (visibleLocationSuggestions.length || canUseTypedLocation)">
+              <button
+                *ngFor="let location of visibleLocationSuggestions; let index = index"
+                type="button"
+                role="option"
+                [class.active]="highlightedLocationSuggestionIndex === index"
+                [attr.aria-selected]="highlightedLocationSuggestionIndex === index"
+                (mousedown)="$event.preventDefault()"
+                (click)="selectLocationSuggestion(location)">
+                <span>{{ location }}</span>
+                <small *ngIf="isGoogleLocationSuggestion(location)">Google Maps</small>
+              </button>
+              <button
+                *ngIf="canUseTypedLocation"
+                type="button"
+                role="option"
+                class="location-suggestions__typed"
+                [class.active]="highlightedLocationSuggestionIndex === visibleLocationSuggestions.length"
+                [attr.aria-selected]="highlightedLocationSuggestionIndex === visibleLocationSuggestions.length"
+                (mousedown)="$event.preventDefault()"
+                (click)="selectLocationSuggestion(formData.location.trim())">
+                Use "{{ formData.location.trim() }}"
+              </button>
+              <span *ngIf="googleLocationSuggestions.length" class="location-suggestions__attribution">Suggestions from Google Maps</span>
             </div>
             <small class="field-help">{{ locationAutocompleteStatus }}</small>
           </label>
@@ -380,8 +936,8 @@
       </div>
 
       <div *ngIf="actionType !== 'edit'" class="relationship-section">
-        <label class="field" *ngIf="actionType === 'add_child'">
-          <span>Relationship to child</span>
+        <label class="field" *ngIf="actionType === 'add_child' || actionType === 'add_parent'">
+          <span>{{ actionType === 'add_parent' ? 'Relationship to parent' : 'Relationship to child' }}</span>
           <select name="parentRelationshipType" [(ngModel)]="formData.parentRelationshipType">
             <option *ngFor="let option of parentRelationshipOptions" [ngValue]="option.value">{{ option.label }}</option>
           </select>
@@ -394,7 +950,7 @@
         </label>
         <label class="field" *ngIf="actionType === 'add_spouse'">
           <span>Relationship began</span>
-          <input type="date" name="relationshipStartDate" [(ngModel)]="formData.relationshipStartDate">
+          <input type="text" inputmode="numeric" name="relationshipStartDate" placeholder="dd-mm-yyyy" [(ngModel)]="formData.relationshipStartDate">
         </label>
       </div>
 
@@ -405,16 +961,48 @@
 
       <div *ngIf="advancedDetailsOpen" class="form-section advanced-fields">
         <div class="form-grid">
-          <label class="field"><span>Birth date</span><input type="date" name="birthDate" [(ngModel)]="formData.birthDate"></label>
-          <label class="field" *ngIf="!formData.isAlive"><span>Death date</span><input type="date" name="deathDate" [(ngModel)]="formData.deathDate"></label>
+          <label class="field"><span>Birth date</span><input type="text" inputmode="numeric" name="birthDate" placeholder="dd-mm-yyyy" [(ngModel)]="formData.birthDate"></label>
+          <label class="field" *ngIf="!formData.isAlive"><span>Death date</span><input type="text" inputmode="numeric" name="deathDate" placeholder="dd-mm-yyyy" [(ngModel)]="formData.deathDate"></label>
           <label class="field field--wide"><span>Birthplace</span><input type="text" name="birthPlace" placeholder="Town, city or country" [(ngModel)]="formData.birthPlace"></label>
           <label class="field field--wide"><span>Alternate names</span><input type="text" name="alternateNames" placeholder="Nickname, maiden name (comma separated)" [(ngModel)]="formData.alternateNames"></label>
           <label class="field field--wide"><span>Tags</span><input type="text" name="tags" placeholder="e.g. Rao branch, Veteran" [(ngModel)]="formData.tags"></label>
           <label class="field field--wide"><span>Photo URL</span><input type="url" name="photoUrl" placeholder="Or add a photo from the profile panel" [(ngModel)]="formData.photoUrl"></label>
+          <fieldset class="social-profile-fields field--wide">
+            <legend>Social profiles</legend>
+            <p>Add a handle or full profile URL. Profiles stay private unless you choose Public.</p>
+            <div class="social-profile-list">
+              <div *ngFor="let option of socialPlatformOptions" class="social-profile-row">
+                <label [for]="'social-' + option.value">{{ option.label }}</label>
+                <input
+                  [id]="'social-' + option.value"
+                  type="text"
+                  autocomplete="off"
+                  maxlength="240"
+                  [name]="'social-' + option.value"
+                  [placeholder]="option.placeholder"
+                  [(ngModel)]="formData.socialProfiles[option.value].handle">
+                <label
+                  class="social-visibility"
+                  [class.social-visibility--public]="formData.socialProfiles[option.value].isPublic"
+                  [class.social-visibility--disabled]="!formData.socialProfiles[option.value].handle.trim()"
+                  [for]="'social-public-' + option.value">
+                  <input
+                    [id]="'social-public-' + option.value"
+                    type="checkbox"
+                    [name]="'social-public-' + option.value"
+                    [disabled]="!formData.socialProfiles[option.value].handle.trim()"
+                    [(ngModel)]="formData.socialProfiles[option.value].isPublic">
+                  <span class="social-visibility__switch" aria-hidden="true"></span>
+                  <span>{{ formData.socialProfiles[option.value].isPublic ? 'Public' : 'Private' }}</span>
+                </label>
+              </div>
+            </div>
+            <small>Only profiles marked Public appear beneath the person’s name.</small>
+          </fieldset>
           <label class="field field--wide"><span>Notes</span><textarea name="notes" rows="4" placeholder="A few details worth remembering…" [(ngModel)]="formData.notes"></textarea></label>
           <ng-container *ngIf="actionType === 'edit' && currentNode?.type === 'spouse'">
             <label class="field"><span>Partnership type</span><select name="editPartnerRelationship" [(ngModel)]="formData.partnerRelationshipType"><option *ngFor="let option of partnerRelationshipOptions" [ngValue]="option.value">{{ option.label }}</option></select></label>
-            <label class="field"><span>Relationship ended</span><input type="date" name="relationshipEndDate" [(ngModel)]="formData.relationshipEndDate"></label>
+            <label class="field"><span>Relationship ended</span><input type="text" inputmode="numeric" name="relationshipEndDate" placeholder="dd-mm-yyyy" [(ngModel)]="formData.relationshipEndDate"></label>
           </ng-container>
         </div>
       </div>
@@ -424,7 +1012,7 @@
         <div>
           <button type="button" class="button-secondary" (click)="closeModal()">Cancel</button>
           <button type="submit" class="button-primary" [disabled]="!formData.name.trim()">
-            {{ actionType === 'edit' ? 'Save changes' : 'Add to tree' }}
+            {{ actionType === 'edit' ? 'Save changes' : (actionType === 'add_parent' ? 'Add parent' : 'Add to tree') }}
           </button>
         </div>
       </footer>
@@ -463,7 +1051,7 @@
         <input type="file" accept=".ged,.gedcom,.json" (change)="handleImportFile($event)">
         <span class="file-drop__icon"><i-lucide name="upload-cloud" [size]="25"></i-lucide></span>
         <strong>{{ importFileName || 'Choose a GEDCOM or backup file' }}</strong>
-        <span>GEDCOM (.ged) is previewed and validated · JSON restores a My Family backup</span>
+        <span>GEDCOM (.ged) is previewed and validated - JSON restores a My Family backup</span>
       </label>
 
       <p *ngIf="importError" class="import-error"><i-lucide name="circle-alert" [size]="15"></i-lucide>{{ importError }}</p>
@@ -508,10 +1096,10 @@
             <div><button type="button" (click)="selectAllFilteredForBulk()">Select all</button><button type="button" (click)="clearBulkSelection()">Clear</button></div>
           </div>
           <div class="bulk-list">
-            <label *ngFor="let entry of filteredPeople.slice(0, 150)" [class.selected]="bulkSelectedIds.has(entry.node.id)">
+            <label *ngFor="let entry of filteredPeople.slice(0, 150); trackBy: trackByPersonEntry" [class.selected]="bulkSelectedIds.has(entry.node.id)">
               <input type="checkbox" [checked]="bulkSelectedIds.has(entry.node.id)" (change)="toggleBulkSelection(entry.node.id)">
               <span>{{ entry.node.name.charAt(0) }}</span>
-              <div><strong>{{ entry.node.name }}</strong><small>{{ entry.node.location || 'Location missing' }} · G{{ entry.generation + 1 }}</small></div>
+              <div><strong>{{ entry.node.name }}</strong><small>{{ entry.node.location || 'Location missing' }} - G{{ entry.generation + 1 }}</small></div>
             </label>
           </div>
         </section>
@@ -533,6 +1121,18 @@
     </div>
   </section>
 </div>
+
+<app-family-chat
+  [open]="familyHelperOpen"
+  [isSignedIn]="isSignedIn"
+  [userId]="signedInUserId"
+  [treeId]="activeTreeId"
+  [canEdit]="canEditCurrentTree"
+  [selectedPersonId]="selectedPersonId"
+  (openChange)="familyHelperOpen = $event"
+  (signInRequested)="signInWithGoogle()"
+  (applied)="handleAiApplied($event)">
+</app-family-chat>
 
 <div *ngIf="toastMessage" class="toast" role="status" aria-live="polite">
   <i-lucide name="circle-check" [size]="17"></i-lucide>

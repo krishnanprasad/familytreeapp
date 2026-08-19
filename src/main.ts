@@ -1,6 +1,12 @@
 import { bootstrapApplication } from '@angular/platform-browser';
 import { appConfig } from './app/app.config';
-import { AppComponent } from './app/app.component';
 
-bootstrapApplication(AppComponent, appConfig)
-  .catch((err) => console.error(err));
+const isLandingPage = window.location.pathname === '/';
+
+const rootComponent = isLandingPage
+  ? import('./app/landing-page.component').then(module => module.LandingPageComponent)
+  : import('./app/workspace.component').then(module => module.WorkspaceComponent);
+
+rootComponent
+  .then(component => bootstrapApplication(component, appConfig))
+  .catch((error) => console.error(error));

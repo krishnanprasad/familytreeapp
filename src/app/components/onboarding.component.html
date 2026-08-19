@@ -1,0 +1,590 @@
+<div class="onboarding-backdrop">
+  <a class="skip-link" href="#archive-main">Skip to main content</a>
+
+  <div class="landing-shell" [class.landing-shell--builder]="step > 0">
+    <header class="site-header">
+      <button type="button" class="brand" (click)="step > 0 ? back() : scrollTo('archive-top')" aria-label="My Family home">
+        <span class="brand-symbol" aria-hidden="true">
+          <i></i><i></i><i></i><i></i>
+        </span>
+        <span class="brand-name">My Family</span>
+        <span class="brand-edition">Living archive</span>
+      </button>
+
+      <nav *ngIf="step === 0" class="desktop-nav" aria-label="Main navigation">
+        <button type="button" (click)="scrollTo('featured-archive')">Explore</button>
+        <button type="button" (click)="scrollTo('discover')">Collections</button>
+        <button type="button" (click)="scrollTo('how-it-works')">How it works</button>
+      </nav>
+
+      <div *ngIf="step === 0" class="header-actions">
+        <a class="workspace-link" href="/app">Open my tree</a>
+        <button type="button" class="header-cta" (click)="startGuidedSetup()">
+          Start with 3 names
+          <i-lucide name="arrow-right" [size]="16"></i-lucide>
+        </button>
+      </div>
+
+      <button *ngIf="step > 0" type="button" class="builder-exit" (click)="returnToArchive()">
+        <i-lucide name="arrow-left" [size]="17"></i-lucide>
+        Back to the archive
+      </button>
+    </header>
+
+    <main *ngIf="step === 0" id="archive-main" class="archive-main">
+      <section id="archive-top" class="hero-section" aria-labelledby="hero-title">
+        <div class="hero-atmosphere" aria-hidden="true"></div>
+        <div class="hero-grid">
+          <div class="hero-copy">
+            <p class="hero-kicker"><span></span> A living archive of human stories</p>
+            <h1 id="hero-title">
+              Discover the families<br>
+              that shaped <em>history.</em>
+            </h1>
+            <p class="hero-lead">
+              Explore the relationships behind kingdoms, cinema, sport, science and enterprise—then preserve the family that shaped you.
+            </p>
+
+            <div class="hero-actions">
+              <button type="button" class="button button-gold" (click)="scrollTo('featured-archive')">
+                Enter the archive
+                <i-lucide name="arrow-right" [size]="18"></i-lucide>
+              </button>
+              <button type="button" class="button button-ghost" (click)="startGuidedSetup()">
+                <i-lucide name="git-fork" [size]="18"></i-lucide>
+                Start my family tree
+              </button>
+            </div>
+
+            <ul class="trust-list" aria-label="Product promises">
+              <li><i-lucide name="shield-check" [size]="16"></i-lucide> Private by default</li>
+              <li><i-lucide name="sparkles" [size]="16"></i-lucide> Free to begin</li>
+              <li><i-lucide name="link-2" [size]="16"></i-lucide> Built for families</li>
+            </ul>
+          </div>
+
+          <div class="hero-visual" aria-label="Interactive family relationship preview">
+            <div
+              #archiveScene
+              class="lineage-scene"
+              (pointermove)="onScenePointerMove($event)"
+              (pointerleave)="resetScenePosition()">
+              <div class="scene-light" aria-hidden="true"></div>
+              <div class="scene-toolbar">
+                <span><i></i> Live relationship map</span>
+                <small>Move to explore depth</small>
+              </div>
+
+              <div class="scene-world">
+                <div class="orbit orbit-one" aria-hidden="true"></div>
+                <div class="orbit orbit-two" aria-hidden="true"></div>
+                <svg class="relationship-lines" viewBox="0 0 620 520" aria-hidden="true" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="hero-line" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stop-color="#e2bd75" stop-opacity=".18"/>
+                      <stop offset=".48" [attr.stop-color]="selectedStory.accent" stop-opacity=".95"/>
+                      <stop offset="1" stop-color="#7cc9b3" stop-opacity=".28"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M305 257 C245 220 218 171 175 126"/>
+                  <path d="M310 260 C377 224 410 178 451 139"/>
+                  <path d="M311 270 C348 333 382 369 422 405"/>
+                  <path class="active-thread" d="M175 126 C247 187 256 223 305 257 C353 291 366 351 422 405"/>
+                </svg>
+
+                <button type="button" class="person-node person-node--past" (click)="scrollTo('featured-archive')">
+                  <span class="node-portrait">{{ selectedStory.people[0].monogram }}</span>
+                  <span class="node-copy"><strong>{{ selectedStory.people[0].name }}</strong><small>{{ selectedStory.people[0].role }}</small></span>
+                </button>
+                <button type="button" class="person-node person-node--center" (click)="scrollTo('featured-archive')">
+                  <span class="node-portrait">{{ selectedStory.people[1].monogram }}</span>
+                  <span class="node-copy"><strong>{{ selectedStory.people[1].name }}</strong><small>{{ selectedStory.people[1].role }}</small></span>
+                </button>
+                <button type="button" class="person-node person-node--next" (click)="scrollTo('featured-archive')">
+                  <span class="node-portrait">{{ selectedStory.people[2].monogram }}</span>
+                  <span class="node-copy"><strong>{{ selectedStory.people[2].name }}</strong><small>{{ selectedStory.people[2].role }}</small></span>
+                </button>
+
+                <div class="history-point history-point--one" aria-hidden="true"><i></i><span>{{ selectedStory.era }}</span></div>
+                <div class="history-point history-point--two" aria-hidden="true"><i></i><span>{{ selectedStory.place }}</span></div>
+              </div>
+
+              <div class="scene-caption">
+                <div>
+                  <span>{{ selectedStory.category }} · Featured path</span>
+                  <strong>{{ selectedStory.title }}</strong>
+                </div>
+                <button type="button" (click)="scrollTo('featured-archive')" aria-label="Open featured story">
+                  <i-lucide name="arrow-right" [size]="17"></i-lucide>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <section class="family-roll" aria-labelledby="family-roll-title">
+          <div class="family-roll__heading">
+            <p id="family-roll-title">Rolling archive</p>
+            <span>Famous families, dynasties, epics and creators</span>
+          </div>
+          <div
+            class="family-roll__viewport"
+            (pointerenter)="pauseFamilyRoll()"
+            (pointerleave)="resumeFamilyRoll()"
+            (pointerdown)="pauseFamilyRoll()"
+            (focusin)="pauseFamilyRoll()"
+            (focusout)="resumeFamilyRoll()">
+            <div class="family-roll__track" [class.family-roll__track--paused]="familyRollPaused">
+              <button
+                *ngFor="let family of rollingFamilyLoop; let rollIndex = index; trackBy: trackRollingFamily"
+                type="button"
+                class="roll-card"
+                (click)="openRollingFamily(family)">
+                <img [src]="family.photo" [alt]="family.name + ' archive photo'" loading="lazy" decoding="async">
+                <span class="roll-card__shade" aria-hidden="true"></span>
+                <span class="roll-card__copy">
+                  <small>{{ family.category }}</small>
+                  <strong>{{ family.name }}</strong>
+                  <span *ngIf="family.birthDate" class="roll-card__dob">
+                    {{ family.deathDate ? ('Born ' + family.birthDate + ' · Died ' + family.deathDate) : ('Born ' + family.birthDate) }} · {{ family.sourceLabel }}
+                  </span>
+                  <em>{{ family.caption }}</em>
+                </span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <form class="archive-search" role="search" (ngSubmit)="submitArchiveSearch()">
+          <span class="search-icon" aria-hidden="true"><i-lucide name="search" [size]="21"></i-lucide></span>
+          <label for="archive-query">
+            <span>Search generated + public trees</span>
+            <input
+              id="archive-query"
+              name="archiveQuery"
+              type="search"
+              autocomplete="off"
+              placeholder="Try Sachin, Ambani, your public trees…"
+              [(ngModel)]="archiveQuery"
+              (focus)="onArchiveSearchFocus()"
+              (input)="onArchiveSearchInput()"
+              (blur)="onArchiveSearchBlur()">
+          </label>
+          <div class="search-examples" aria-label="Example searches">
+            <button type="button" *ngFor="let story of featuredStories.slice(0, 3); trackBy: trackStory" (click)="archiveQuery = story.title; submitArchiveSearch()">
+              {{ story.title.replace('The ', '') }}
+            </button>
+          </div>
+          <button type="submit" class="search-submit" aria-label="Search preview archive">
+            <i-lucide name="arrow-right" [size]="19"></i-lucide>
+          </button>
+          <div *ngIf="archiveSearchDropdownVisible" class="search-dropdown" role="listbox" aria-label="Search suggestions">
+            <p *ngIf="publicTreeSearchLoading" class="search-dropdown__loading">
+              Loading public treesâ€¦
+            </p>
+            <button
+              *ngFor="let option of archiveSearchOptions"
+              type="button"
+              role="option"
+              [class.search-dropdown__option--generated]="option.kind === 'generated'"
+              (mousedown)="$event.preventDefault()"
+              (click)="openArchiveOption(option)">
+              <span>
+                <strong>{{ option.title }}</strong>
+                <small>{{ option.subtitle }}</small>
+              </span>
+              <em>{{ option.badge }}</em>
+            </button>
+          </div>
+          <p class="search-status" aria-live="polite">{{ archiveSearchStatus }}</p>
+        </form>
+
+        <button type="button" class="scroll-cue" (click)="scrollTo('archive-intro')" aria-label="Continue to the story">
+          <span>Scroll to travel through time</span>
+          <i aria-hidden="true"></i>
+        </button>
+      </section>
+
+      <section id="archive-intro" class="intro-section">
+        <p class="section-number">01 · WHY FAMILIES</p>
+        <div class="intro-statement">
+          <h2>History is easier to remember when it has a face.</h2>
+          <p>
+            Dates tell us when something happened. Families reveal why: the promises, rivalries, migrations, mentorship and courage that moved from one life into another.
+          </p>
+        </div>
+        <div class="intro-note">
+          <i-lucide name="users" [size]="22"></i-lucide>
+          <span>Every public story leads back to one simple question:</span>
+          <strong>Who carried the story forward?</strong>
+        </div>
+      </section>
+
+      <section id="featured-archive" class="featured-section" aria-labelledby="featured-title">
+        <header class="section-heading">
+          <div>
+            <p class="section-kicker">Featured family trails</p>
+            <h2 id="featured-title">Choose a door into history.</h2>
+          </div>
+          <p>Select a family to reveal the relationship thread behind its story.</p>
+        </header>
+
+        <div class="story-tabs" role="tablist" aria-label="Featured families">
+          <button
+            *ngFor="let story of featuredStories; let index = index; trackBy: trackStory"
+            type="button"
+            role="tab"
+            [class.active]="selectedStoryIndex === index"
+            [attr.aria-selected]="selectedStoryIndex === index"
+            (click)="selectStory(index)">
+            <span>{{ story.category }}</span>
+            <strong>{{ story.title }}</strong>
+          </button>
+        </div>
+
+        <article class="story-stage" [style.--story-accent]="selectedStory.accent">
+          <div class="story-copy">
+            <div class="story-meta">
+              <span>{{ selectedStory.category }}</span>
+              <span>{{ selectedStory.place }}</span>
+            </div>
+            <p class="story-era">{{ selectedStory.era }}</p>
+            <h3>{{ selectedStory.title }}</h3>
+            <p class="story-hook">{{ selectedStory.hook }}</p>
+            <blockquote>“{{ selectedStory.relationship }}”</blockquote>
+            <button type="button" class="text-link" (click)="startGuidedSetup()">
+              See what your family story could become
+              <i-lucide name="arrow-right" [size]="17"></i-lucide>
+            </button>
+          </div>
+
+          <div class="kinship-path" aria-label="Example relationship path">
+            <div class="path-line" aria-hidden="true"></div>
+            <div class="path-person" *ngFor="let person of selectedStory.people; let index = index">
+              <span class="path-index">0{{ index + 1 }}</span>
+              <span class="path-avatar">{{ person.monogram }}</span>
+              <div><strong>{{ person.name }}</strong><small>{{ person.role }}</small></div>
+            </div>
+            <div class="path-insight">
+              <i-lucide name="sparkles" [size]="17"></i-lucide>
+              <span>The relationship is the story—not just the chart.</span>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section id="discover" class="discover-section" aria-labelledby="discover-title">
+        <header class="section-heading section-heading--light">
+          <div>
+            <p class="section-kicker">Explore what fascinates you</p>
+            <h2 id="discover-title">Every field has a family story.</h2>
+          </div>
+          <p>Begin with a world you know, then follow the people and relationships you did not.</p>
+        </header>
+
+        <div class="category-grid">
+          <button
+            *ngFor="let category of discoveryCategories; let index = index; trackBy: trackCategory"
+            type="button"
+            class="category-card"
+            [class.active]="activeDiscoveryIndex === index"
+            [attr.aria-expanded]="activeDiscoveryIndex === index"
+            aria-controls="story-tunnel"
+            (click)="openDiscovery(index)">
+            <span class="category-icon"><i-lucide [name]="category.icon" [size]="22"></i-lucide></span>
+            <span class="category-count">{{ category.count }}</span>
+            <strong>{{ category.title }}</strong>
+            <p>{{ category.description }}</p>
+            <span class="category-arrow"><i-lucide name="arrow-right" [size]="17"></i-lucide></span>
+          </button>
+        </div>
+
+        <section
+          *ngIf="activeDiscoveryCategory as activeCategory"
+          id="story-tunnel"
+          class="story-tunnel"
+          [class.story-tunnel--deep]="discoveryDepth > 1"
+          [style.--tunnel-accent]="selectedStory.accent"
+          aria-live="polite">
+          <div class="tunnel-header">
+            <div>
+              <p class="section-kicker">Cinematic story tunnel</p>
+              <h3>{{ activeCategory.title }}</h3>
+            </div>
+            <p>Click one title card. It opens into three deeper relationship scenes.</p>
+          </div>
+
+          <div class="tunnel-stage">
+            <div class="tunnel-title-card" [class.tunnel-title-card--deep]="discoveryDepth === 3">
+              <span class="film-strip" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+              <p class="tunnel-kicker">{{ activeDiscoveryBranch?.kicker }}</p>
+              <h4>{{ activeDiscoveryBranch?.title }}</h4>
+              <p>{{ activeDiscoveryBranch?.frame }}</p>
+              <blockquote *ngIf="activeDiscoveryMoment">
+                {{ activeDiscoveryMoment.detail }}
+              </blockquote>
+              <div class="tunnel-depth">
+                <span [class.active]="discoveryDepth >= 1">Door</span>
+                <i></i>
+                <span [class.active]="discoveryDepth >= 2">Title</span>
+                <i></i>
+                <span [class.active]="discoveryDepth >= 3">Scene</span>
+              </div>
+            </div>
+
+            <div class="tunnel-doors" aria-label="Story title cards">
+              <button
+                *ngFor="let branch of activeCategory.branches; let branchIndex = index; trackBy: trackBranch"
+                type="button"
+                [class.active]="activeDiscoveryBranchIndex === branchIndex"
+                (click)="openDiscoveryBranch(branchIndex)">
+                <span>0{{ branchIndex + 1 }}</span>
+                <strong>{{ branch.title }}</strong>
+                <small>{{ branch.insight }}</small>
+                <i-lucide name="chevron-right" [size]="17"></i-lucide>
+              </button>
+            </div>
+
+            <div class="tunnel-scenes" *ngIf="activeDiscoveryBranch as activeBranch" aria-label="Deeper relationship scenes">
+              <button
+                *ngFor="let moment of activeBranch.moments; let momentIndex = index; trackBy: trackMoment"
+                type="button"
+                [class.active]="activeDiscoveryMomentIndex === momentIndex && discoveryDepth === 3"
+                (click)="openDiscoveryMoment(momentIndex)">
+                <span>{{ moment.label }}</span>
+                <strong>{{ moment.title }}</strong>
+              </button>
+            </div>
+          </div>
+        </section>
+      </section>
+
+      <section id="how-it-works" class="process-section" aria-labelledby="process-title">
+        <div class="process-heading">
+          <p class="section-number">02 · FROM CURIOSITY TO LEGACY</p>
+          <h2 id="process-title">Explore their story.<br><em>Then begin yours.</em></h2>
+        </div>
+
+        <ol class="process-steps">
+          <li>
+            <span class="process-index">01</span>
+            <span class="process-icon"><i-lucide name="search" [size]="20"></i-lucide></span>
+            <div><strong>Follow a remarkable family</strong><p>Move through people, generations, places and moments—not a flat list of dates.</p></div>
+          </li>
+          <li>
+            <span class="process-index">02</span>
+            <span class="process-icon"><i-lucide name="link-2" [size]="20"></i-lucide></span>
+            <div><strong>Understand the connection</strong><p>See the exact thread that joins one person to another in plain language.</p></div>
+          </li>
+          <li>
+            <span class="process-index">03</span>
+            <span class="process-icon"><i-lucide name="git-fork" [size]="20"></i-lucide></span>
+            <div><strong>Plant your first branch</strong><p>Add three names now. Invite the relative who remembers what comes next.</p></div>
+          </li>
+        </ol>
+      </section>
+
+      <section class="legacy-section" aria-labelledby="legacy-title">
+        <div class="legacy-map" aria-hidden="true">
+          <span class="legacy-node legacy-node--one">YOU</span>
+          <span class="legacy-node legacy-node--two">PARENT</span>
+          <span class="legacy-node legacy-node--three">STORY</span>
+          <i class="legacy-line legacy-line--one"></i>
+          <i class="legacy-line legacy-line--two"></i>
+        </div>
+        <div class="legacy-copy">
+          <p class="section-kicker">The defining moment</p>
+          <h2 id="legacy-title">Three names turn an empty canvas into <em>your</em> history.</h2>
+          <p>No account wall. No giant form. Start with what you remember and let your family help complete the missing branches.</p>
+          <button type="button" class="button button-gold" (click)="startGuidedSetup()">
+            Build my first branch
+            <i-lucide name="arrow-right" [size]="18"></i-lucide>
+          </button>
+        </div>
+      </section>
+
+      <section class="final-cta" aria-labelledby="final-cta-title">
+        <div class="final-cta__halo" aria-hidden="true"></div>
+        <p class="section-kicker">Your chapter starts here</p>
+        <h2 id="final-cta-title">How many generations can your family remember?</h2>
+        <p>Begin with your name and two people before you. It takes less than a minute.</p>
+        <button type="button" class="button button-gold" (click)="startGuidedSetup()">
+          Start with 3 names
+          <i-lucide name="arrow-right" [size]="18"></i-lucide>
+        </button>
+        <div class="final-trust">
+          <span><i-lucide name="shield-check" [size]="15"></i-lucide> Private by default</span>
+          <span>No credit card</span>
+          <span>Import later</span>
+        </div>
+      </section>
+
+      <footer class="site-footer">
+        <div class="brand brand--footer">
+          <span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+          <span class="brand-name">My Family</span>
+        </div>
+        <p>Discover the families that shaped history. Preserve the one that shaped you.</p>
+        <div>
+          <button type="button" (click)="manual.emit()">Blank canvas</button>
+          <button type="button" (click)="importRequested.emit()">Import a tree</button>
+          <button type="button" (click)="scrollTo('archive-top')">Back to top</button>
+        </div>
+      </footer>
+    </main>
+
+    <main *ngIf="step > 0" id="archive-main" class="builder-main">
+      <section class="builder-panel" role="dialog" aria-modal="true" aria-labelledby="builder-title">
+        <div class="builder-progress" aria-label="Family tree setup progress">
+          <span [class.active]="step >= 1"><i>1</i> Your name</span>
+          <b [class.complete]="step > 1"></b>
+          <span [class.active]="step >= 2"><i>2</i> Your people</span>
+          <b></b>
+          <span><i>3</i> Your tree</span>
+        </div>
+
+        <div class="builder-grid">
+          <form class="builder-form" novalidate (ngSubmit)="advance()">
+            <ng-container *ngIf="step === 1">
+              <p class="section-kicker">Private in one click</p>
+              <h1 id="builder-title" #stepHeading tabindex="-1">Your family story starts with you.</h1>
+              <p class="builder-lead">Start instantly with Google, or enter your name and explore first. Either way, your tree begins privately.</p>
+
+              <section class="google-fast-path" [class.google-fast-path--connected]="googleUser" aria-labelledby="google-fast-path-title">
+                <div class="fast-path-label">
+                  <span id="google-fast-path-title"><i-lucide name="zap" [size]="14"></i-lucide> Fastest way to begin</span>
+                  <em *ngIf="googleUser"><i-lucide name="circle-check" [size]="13"></i-lucide> Ready</em>
+                </div>
+                <button
+                  type="button"
+                  class="google-join-button"
+                  [class.google-join-button--connected]="googleUser"
+                  [disabled]="googleSignInBusy"
+                  (click)="continueWithGoogle()">
+                  <img *ngIf="googleUser?.photoURL as googlePhoto" class="google-account-photo" [src]="googlePhoto" alt="">
+                  <svg *ngIf="!googleUser?.photoURL" class="google-mark" viewBox="0 0 18 18" aria-hidden="true">
+                    <path fill="#4285F4" d="M17.64 9.205c0-.638-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.797 2.716v2.258h2.909c1.702-1.567 2.684-3.874 2.684-6.614z"/>
+                    <path fill="#34A853" d="M9 18c2.43 0 4.468-.806 5.956-2.181l-2.909-2.258c-.806.54-1.835.859-3.047.859-2.344 0-4.328-1.585-5.037-3.714H.956v2.332A9 9 0 0 0 9 18z"/>
+                    <path fill="#FBBC05" d="M3.963 10.706A5.41 5.41 0 0 1 3.682 9c0-.592.102-1.168.281-1.706V4.962H.956A9 9 0 0 0 0 9c0 1.452.347 2.827.956 4.038l3.007-2.332z"/>
+                    <path fill="#EA4335" d="M9 3.58c1.321 0 2.507.454 3.441 1.346l2.582-2.582C13.464.892 11.426 0 9 0A9 9 0 0 0 .956 4.962l3.007 2.332C4.672 5.165 6.656 3.58 9 3.58z"/>
+                  </svg>
+                  <span class="google-join-copy">
+                    <strong>{{ googleUser ? ('Continue as ' + (googleUser.displayName || googleUser.email || 'your Google account')) : 'Continue with Google' }}</strong>
+                    <small>{{ googleUser ? 'Use this profile for your starting person' : 'Pre-fill your name and photo, then save securely' }}</small>
+                  </span>
+                  <span *ngIf="googleSignInBusy" class="google-loader" aria-hidden="true"></span>
+                  <i-lucide *ngIf="!googleSignInBusy" name="arrow-right" [size]="18" aria-hidden="true"></i-lucide>
+                </button>
+                <p class="google-fast-path__note">
+                  <i-lucide [name]="googleUser ? 'shield-check' : 'lock-keyhole'" [size]="14"></i-lucide>
+                  {{ googleUser ? 'Google profile connected. We only use your name and photo.' : 'No password to remember. We never post to your Google account.' }}
+                </p>
+                <p *ngIf="googleSignInError" class="google-sign-in-error" role="alert">{{ googleSignInError }}</p>
+              </section>
+
+              <div class="builder-divider"><span>{{ googleUser ? 'or use a different name' : 'or continue without signing in' }}</span></div>
+
+              <label class="builder-field" for="self-name">
+                <span>Your full name</span>
+                <input
+                  id="self-name"
+                  name="selfName"
+                  type="text"
+                  autocomplete="name"
+                  maxlength="120"
+                  placeholder="e.g. Maya Rao"
+                  [(ngModel)]="form.selfName"
+                  [attr.aria-invalid]="selfAttempted && !form.selfName.trim() ? 'true' : null"
+                  [attr.aria-describedby]="selfAttempted && !form.selfName.trim() ? 'self-name-error' : 'self-name-help'">
+                <small id="self-name-help" *ngIf="!selfAttempted || form.selfName.trim()">You can add dates, places and stories later.</small>
+                <small id="self-name-error" *ngIf="selfAttempted && !form.selfName.trim()" class="field-error" role="alert">Enter your name to continue.</small>
+              </label>
+
+              <details class="optional-details">
+                <summary>Optional details</summary>
+                <div>
+                  <label class="builder-field" for="self-birth-date"><span>Birth date</span><input id="self-birth-date" name="selfBirthDate" type="date" autocomplete="bday" [(ngModel)]="form.selfBirthDate"></label>
+                  <label class="builder-field" for="self-location"><span>Current location</span><input id="self-location" name="selfLocation" type="text" autocomplete="address-level2" placeholder="City or country" [(ngModel)]="form.selfLocation"></label>
+                </div>
+              </details>
+
+              <ul class="builder-benefits" aria-label="Getting started benefits">
+                <li><i-lucide name="shield-check" [size]="15"></i-lucide><span><strong>Private by default</strong><small>You control every invitation</small></span></li>
+                <li><i-lucide name="sparkles" [size]="15"></i-lucide><span><strong>Free to start</strong><small>Build your first branch now</small></span></li>
+                <li><i-lucide name="users" [size]="15"></i-lucide><span><strong>Invite later</strong><small>Bring relatives in when ready</small></span></li>
+              </ul>
+            </ng-container>
+
+            <ng-container *ngIf="step === 2">
+              <p class="section-kicker">The people before you</p>
+              <h1 id="builder-title" #stepHeading tabindex="-1">Who helped your story begin?</h1>
+              <p class="builder-lead">Add one or two parents, guardians or people who raised you. Both names are optional.</p>
+
+              <div class="parent-fields">
+                <label class="builder-field" for="parent-one">
+                  <span>First person</span>
+                  <input id="parent-one" name="parentOneName" type="text" maxlength="120" placeholder="Full name" [(ngModel)]="form.parentOneName">
+                </label>
+                <label class="builder-field" for="parent-two">
+                  <span>Second person</span>
+                  <input id="parent-two" name="parentTwoName" type="text" maxlength="120" placeholder="Full name" [(ngModel)]="form.parentTwoName">
+                </label>
+              </div>
+
+              <p class="builder-payoff" *ngIf="filledNameCount >= 3">
+                <i-lucide name="sparkles" [size]="17"></i-lucide>
+                You have already remembered three lives. Your first branch is ready.
+              </p>
+            </ng-container>
+
+            <footer class="builder-footer">
+              <button type="button" class="builder-back" (click)="back()">{{ step === 1 ? 'Not ready yet' : 'Back' }}</button>
+              <button type="submit" class="button button-gold">
+                {{ primaryLabel }}
+                <i-lucide name="arrow-right" [size]="18"></i-lucide>
+              </button>
+            </footer>
+
+            <p class="builder-privacy"><i-lucide name="shield-check" [size]="15"></i-lucide> Your tree starts private. You choose when and with whom to share it.</p>
+          </form>
+
+          <aside class="builder-preview" aria-label="Preview of your first family branch">
+            <div class="preview-label"><span>Live branch preview</span><small>{{ filledNameCount }} of 3 names</small></div>
+            <div class="preview-identity-status" [class.preview-identity-status--connected]="joinedWithGoogle">
+              <i></i>
+              <span>{{ joinedWithGoogle ? 'Google profile connected' : (form.selfName.trim() ? 'Your first person is taking shape' : 'Waiting for your first name') }}</span>
+            </div>
+            <div class="preview-tree" [class.preview-tree--growing]="step === 2" [class.preview-tree--connected]="joinedWithGoogle">
+              <svg viewBox="0 0 520 430" aria-hidden="true" preserveAspectRatio="none">
+                <path class="preview-branch preview-branch--mint" d="M260 302 C260 247 170 241 150 176" [class.visible]="form.parentOneName.trim() || step === 2"/>
+                <path class="preview-branch preview-branch--blue" d="M260 302 C260 247 351 241 370 176" [class.visible]="form.parentTwoName.trim() || step === 2"/>
+              </svg>
+              <div class="identity-orbit" [class.identity-orbit--visible]="form.selfName.trim()" aria-hidden="true"><i></i><i></i></div>
+              <div class="preview-person preview-person--self" [class.filled]="form.selfName.trim()" [class.preview-person--google]="joinedWithGoogle">
+                <img *ngIf="joinedWithGoogle && googleUser?.photoURL as previewGooglePhoto" [src]="previewGooglePhoto" alt="">
+                <span *ngIf="!joinedWithGoogle || !googleUser?.photoURL">{{ form.selfName.trim().charAt(0) || 'Y' }}</span>
+                <div><strong>{{ form.selfName.trim() || 'Your name' }}</strong><small>Starting point</small></div>
+              </div>
+              <div class="preview-person preview-person--parent-one preview-person--mint" [class.filled]="form.parentOneName.trim()">
+                <span>{{ form.parentOneName.trim().charAt(0) || '?' }}</span>
+                <div><strong>{{ form.parentOneName.trim() || 'First person' }}</strong><small>Previous generation</small></div>
+              </div>
+              <div class="preview-person preview-person--parent-two preview-person--blue" [class.filled]="form.parentTwoName.trim()">
+                <span>{{ form.parentTwoName.trim().charAt(0) || '?' }}</span>
+                <div><strong>{{ form.parentTwoName.trim() || 'Second person' }}</strong><small>Previous generation</small></div>
+              </div>
+              <div class="preview-stars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+            </div>
+            <blockquote>{{ joinedWithGoogle ? '“Your first person is ready. Now add the people who helped your story begin.”' : '“Every family tree begins with someone deciding the names should not be forgotten.”' }}</blockquote>
+          </aside>
+        </div>
+
+        <div class="builder-alternatives" *ngIf="step === 1">
+          <span>Already have family data?</span>
+          <button type="button" (click)="importRequested.emit()"><i-lucide name="file-up" [size]="16"></i-lucide> Import a tree</button>
+          <button type="button" (click)="manual.emit()"><i-lucide name="git-fork" [size]="16"></i-lucide> Open a blank canvas</button>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>

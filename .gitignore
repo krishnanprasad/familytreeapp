@@ -7,9 +7,12 @@
 /bazel-out
 
 # Node
-/node_modules
+**/node_modules/
 npm-debug.log
 yarn-error.log
+**/.env
+**/.env.*
+!.env.example
 
 # IDEs and editors
 .idea/
@@ -30,6 +33,8 @@ yarn-error.log
 
 # Miscellaneous
 /.angular/cache
+/.firebase/
+/.codex-*.log
 .sass-cache/
 /connect.lock
 /coverage
