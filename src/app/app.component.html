@@ -62,14 +62,21 @@
         <i-lucide name="save" [size]="16"></i-lucide>
         <span>Save</span>
       </button>
-      <button type="button" class="header-button header-button--subtle" aria-label="Open my trees" (click)="openMyTrees()">
-        <i-lucide name="layers-3" [size]="16"></i-lucide>
-        <span>My trees</span>
-      </button>
-      <button type="button" class="header-button header-button--subtle" aria-label="Create new family tree" (click)="createNewTree()">
-        <i-lucide name="git-fork" [size]="16"></i-lucide>
-        <span>New tree</span>
-      </button>
+      <div class="tree-management-actions" role="group" aria-label="Tree management">
+        <button type="button" class="header-button header-button--subtle" aria-label="Open my trees" (click)="openMyTrees()">
+          <i-lucide name="layers-3" [size]="16"></i-lucide>
+          <span>My trees</span>
+        </button>
+        <button
+          type="button"
+          class="header-button header-button--create-tree"
+          aria-label="Create a new family tree"
+          title="Start another family tree"
+          (click)="createNewTree()">
+          <i-lucide name="plus" [size]="16"></i-lucide>
+          <span>Create new tree</span>
+        </button>
+      </div>
       <button type="button" class="header-button header-button--subtle" aria-label="Open share and access settings" (click)="openShareDialog()" [disabled]="!canShareCurrentTree">
         <i-lucide name="link-2" [size]="16"></i-lucide>
         <span>Share & access</span>
@@ -568,9 +575,9 @@
         <h2 id="my-trees-title">Choose a family tree</h2>
       </div>
       <div class="dashboard-actions">
-        <button type="button" class="button-secondary" (click)="createNewTree()">
+        <button type="button" class="button-secondary button-secondary--create-tree" (click)="createNewTree()">
           <i-lucide name="plus" [size]="14"></i-lucide>
-          New tree
+          Create new tree
         </button>
         <button type="button" class="icon-button" (click)="closeMyTrees()" aria-label="Close"><i-lucide name="x" [size]="18"></i-lucide></button>
       </div>

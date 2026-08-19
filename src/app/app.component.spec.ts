@@ -38,6 +38,27 @@ describe('AppComponent', () => {
     expect(compiled.textContent).toContain('My Family');
   });
 
+  it('should highlight creating a tree without competing with the primary add-person action', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const app = fixture.componentInstance;
+    const createSpy = spyOn(app, 'createNewTree').and.resolveTo();
+
+    const group = fixture.nativeElement.querySelector('.tree-management-actions') as HTMLElement;
+    const createButton = group.querySelector('.header-button--create-tree') as HTMLButtonElement;
+    const addPersonButton = fixture.nativeElement.querySelector('.header-button--primary[aria-label="Add person"]') as HTMLButtonElement;
+
+    expect(group.getAttribute('aria-label')).toBe('Tree management');
+    expect(group.textContent).toContain('My trees');
+    expect(createButton.textContent).toContain('Create new tree');
+    expect(createButton.getAttribute('title')).toBe('Start another family tree');
+    expect(createButton.classList).not.toContain('header-button--primary');
+    expect(addPersonButton).toBeTruthy();
+
+    createButton.click();
+    expect(createSpy).toHaveBeenCalled();
+  });
+
   it('should use the simplified mobile navigation destinations', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
