@@ -12,15 +12,15 @@
       </button>
 
       <nav *ngIf="step === 0" class="desktop-nav" aria-label="Main navigation">
-        <button type="button" (click)="scrollTo('featured-archive')">Explore</button>
-        <button type="button" (click)="scrollTo('discover')">Collections</button>
         <button type="button" (click)="scrollTo('how-it-works')">How it works</button>
+        <button type="button" (click)="scrollTo('preserve')">What you can preserve</button>
+        <button type="button" (click)="scrollTo('archive-intro')">Explore stories</button>
       </nav>
 
       <div *ngIf="step === 0" class="header-actions">
-        <a class="workspace-link" href="/app">Open my tree</a>
+        <a class="workspace-link" href="/app">Open existing tree</a>
         <button type="button" class="header-cta" (click)="startGuidedSetup()">
-          Start with 3 names
+          Start my tree
           <i-lucide name="arrow-right" [size]="16"></i-lucide>
         </button>
       </div>
@@ -36,30 +36,30 @@
         <div class="hero-atmosphere" aria-hidden="true"></div>
         <div class="hero-grid">
           <div class="hero-copy">
-            <p class="hero-kicker"><span></span> A living archive of human stories</p>
+            <p class="hero-kicker"><span></span> Private family tree · Free to begin</p>
             <h1 id="hero-title">
-              Discover the families<br>
-              that shaped <em>history.</em>
+              Build the family tree<br>
+              only <em>your family</em> can tell.
             </h1>
             <p class="hero-lead">
-              Explore the relationships behind kingdoms, cinema, sport, science and enterprise—then preserve the family that shaped you.
+              Begin with yourself and two people you know. Add photos and stories, then invite relatives to help complete the missing branches.
             </p>
 
             <div class="hero-actions">
-              <button type="button" class="button button-gold" (click)="scrollTo('featured-archive')">
-                Enter the archive
+              <button type="button" class="button button-gold" (click)="startGuidedSetup()">
+                Start my family tree
                 <i-lucide name="arrow-right" [size]="18"></i-lucide>
               </button>
-              <button type="button" class="button button-ghost" (click)="startGuidedSetup()">
-                <i-lucide name="git-fork" [size]="18"></i-lucide>
-                Start my family tree
+              <button type="button" class="button button-ghost" (click)="scrollTo('how-it-works')">
+                <i-lucide name="play" [size]="17"></i-lucide>
+                See how it works
               </button>
             </div>
 
             <ul class="trust-list" aria-label="Product promises">
+              <li><i-lucide name="clock-3" [size]="16"></i-lucide> Takes about a minute</li>
               <li><i-lucide name="shield-check" [size]="16"></i-lucide> Private by default</li>
-              <li><i-lucide name="sparkles" [size]="16"></i-lucide> Free to begin</li>
-              <li><i-lucide name="link-2" [size]="16"></i-lucide> Built for families</li>
+              <li><i-lucide name="users" [size]="16"></i-lucide> Invite family later</li>
             </ul>
           </div>
 
@@ -71,61 +71,164 @@
               (pointerleave)="resetScenePosition()">
               <div class="scene-light" aria-hidden="true"></div>
               <div class="scene-toolbar">
-                <span><i></i> Live relationship map</span>
-                <small>Move to explore depth</small>
+                <span><i></i> Your private family tree</span>
+                <small>Start with 3 names</small>
               </div>
 
-              <div class="scene-world">
-                <div class="orbit orbit-one" aria-hidden="true"></div>
-                <div class="orbit orbit-two" aria-hidden="true"></div>
-                <svg class="relationship-lines" viewBox="0 0 620 520" aria-hidden="true" preserveAspectRatio="none">
+              <div class="scene-world starter-tree">
+                <div class="starter-orbit starter-orbit--one" aria-hidden="true"></div>
+                <div class="starter-orbit starter-orbit--two" aria-hidden="true"></div>
+                <svg class="starter-branches" viewBox="0 0 620 520" aria-hidden="true" preserveAspectRatio="none">
                   <defs>
-                    <linearGradient id="hero-line" x1="0" y1="0" x2="1" y2="1">
-                      <stop offset="0" stop-color="#e2bd75" stop-opacity=".18"/>
-                      <stop offset=".48" [attr.stop-color]="selectedStory.accent" stop-opacity=".95"/>
-                      <stop offset="1" stop-color="#7cc9b3" stop-opacity=".28"/>
+                    <linearGradient id="starter-line" x1="0" y1="0" x2="1" y2="1">
+                      <stop offset="0" stop-color="#79c8b0" stop-opacity=".38"/>
+                      <stop offset=".5" stop-color="#f0cf8d" stop-opacity=".95"/>
+                      <stop offset="1" stop-color="#deb96f" stop-opacity=".36"/>
                     </linearGradient>
                   </defs>
-                  <path d="M305 257 C245 220 218 171 175 126"/>
-                  <path d="M310 260 C377 224 410 178 451 139"/>
-                  <path d="M311 270 C348 333 382 369 422 405"/>
-                  <path class="active-thread" d="M175 126 C247 187 256 223 305 257 C353 291 366 351 422 405"/>
+                  <path d="M310 350 C310 292 184 277 170 194"/>
+                  <path d="M310 350 C310 292 436 277 450 194"/>
                 </svg>
 
-                <button type="button" class="person-node person-node--past" (click)="scrollTo('featured-archive')">
-                  <span class="node-portrait">{{ selectedStory.people[0].monogram }}</span>
-                  <span class="node-copy"><strong>{{ selectedStory.people[0].name }}</strong><small>{{ selectedStory.people[0].role }}</small></span>
+                <button type="button" class="starter-person starter-person--one" (click)="startGuidedSetup()" aria-label="Add your first relative">
+                  <span class="starter-person__portrait"><i-lucide name="plus" [size]="19"></i-lucide></span>
+                  <span class="starter-person__copy"><strong>First relative</strong><small>Parent, guardian or elder</small></span>
                 </button>
-                <button type="button" class="person-node person-node--center" (click)="scrollTo('featured-archive')">
-                  <span class="node-portrait">{{ selectedStory.people[1].monogram }}</span>
-                  <span class="node-copy"><strong>{{ selectedStory.people[1].name }}</strong><small>{{ selectedStory.people[1].role }}</small></span>
+                <button type="button" class="starter-person starter-person--two" (click)="startGuidedSetup()" aria-label="Add your second relative">
+                  <span class="starter-person__portrait"><i-lucide name="plus" [size]="19"></i-lucide></span>
+                  <span class="starter-person__copy"><strong>Second relative</strong><small>Someone before you</small></span>
                 </button>
-                <button type="button" class="person-node person-node--next" (click)="scrollTo('featured-archive')">
-                  <span class="node-portrait">{{ selectedStory.people[2].monogram }}</span>
-                  <span class="node-copy"><strong>{{ selectedStory.people[2].name }}</strong><small>{{ selectedStory.people[2].role }}</small></span>
+                <button type="button" class="starter-person starter-person--self" (click)="startGuidedSetup()" aria-label="Start your tree with your name">
+                  <span class="starter-person__portrait starter-person__portrait--self"><i-lucide name="user-round" [size]="19"></i-lucide></span>
+                  <span class="starter-person__copy"><strong>You</strong><small>Your story starts here</small></span>
                 </button>
 
-                <div class="history-point history-point--one" aria-hidden="true"><i></i><span>{{ selectedStory.era }}</span></div>
-                <div class="history-point history-point--two" aria-hidden="true"><i></i><span>{{ selectedStory.place }}</span></div>
+                <div class="starter-prompt">
+                  <span><i-lucide name="sparkles" [size]="14"></i-lucide> One-minute setup</span>
+                  <strong>Your first branch is three names away.</strong>
+                  <button type="button" (click)="startGuidedSetup()">Add your name <i-lucide name="arrow-right" [size]="15"></i-lucide></button>
+                </div>
               </div>
 
               <div class="scene-caption">
                 <div>
-                  <span>{{ selectedStory.category }} · Featured path</span>
-                  <strong>{{ selectedStory.title }}</strong>
+                  <span>Private workspace</span>
+                  <strong>Only the family you invite can see it.</strong>
                 </div>
-                <button type="button" (click)="scrollTo('featured-archive')" aria-label="Open featured story">
-                  <i-lucide name="arrow-right" [size]="17"></i-lucide>
-                </button>
+                <i-lucide name="shield-check" [size]="22" aria-hidden="true"></i-lucide>
               </div>
             </div>
           </div>
         </div>
 
-        <section class="family-roll" aria-labelledby="family-roll-title">
+      </section>
+
+      <section id="how-it-works" class="process-section" aria-labelledby="process-title">
+        <div class="process-heading">
+          <p class="section-number">01 · START SMALL</p>
+          <h2 id="process-title">Three names today.<br><em>A living legacy tomorrow.</em></h2>
+        </div>
+
+        <ol class="process-steps">
+          <li>
+            <span class="process-index">01</span>
+            <span class="process-icon"><i-lucide name="user-round" [size]="20"></i-lucide></span>
+            <div><strong>Begin with yourself</strong><p>Add your name first. Dates, places and photos can wait until you are ready.</p></div>
+          </li>
+          <li>
+            <span class="process-index">02</span>
+            <span class="process-icon"><i-lucide name="git-fork" [size]="20"></i-lucide></span>
+            <div><strong>Add two people you know</strong><p>Choose parents, guardians, grandparents or anyone who helped your story begin.</p></div>
+          </li>
+          <li>
+            <span class="process-index">03</span>
+            <span class="process-icon"><i-lucide name="users" [size]="20"></i-lucide></span>
+            <div><strong>Invite family to fill the gaps</strong><p>Share only when you choose, then preserve the photos and memories each relative remembers.</p></div>
+          </li>
+        </ol>
+      </section>
+
+      <section id="preserve" class="legacy-section" aria-labelledby="legacy-title">
+        <div class="legacy-map" aria-hidden="true">
+          <span class="legacy-node legacy-node--one">YOU</span>
+          <span class="legacy-node legacy-node--two">RELATIVE</span>
+          <span class="legacy-node legacy-node--three">STORY</span>
+          <i class="legacy-line legacy-line--one"></i>
+          <i class="legacy-line legacy-line--two"></i>
+        </div>
+        <div class="legacy-copy">
+          <p class="section-kicker">See it take shape</p>
+          <h2 id="legacy-title">Three names turn an empty canvas into <em>your</em> history.</h2>
+          <p>No account wall. No giant form. Start with what you remember, preserve photos and stories, and let your family help complete the missing branches.</p>
+          <button type="button" class="button button-gold" (click)="startGuidedSetup()">
+            Build my first branch
+            <i-lucide name="arrow-right" [size]="18"></i-lucide>
+          </button>
+        </div>
+      </section>
+
+      <section id="archive-intro" class="intro-section">
+        <p class="section-number">02 · STORIES TO INSPIRE YOURS</p>
+        <div class="intro-statement">
+          <h2>Every family carries a story worth remembering.</h2>
+          <p>
+            Browse remarkable public family stories for inspiration, then return to the people, places and memories that make your own family unique.
+          </p>
+        </div>
+        <div class="intro-note">
+          <i-lucide name="book-open" [size]="22"></i-lucide>
+          <span>The archive is here to spark ideas—not to replace your story.</span>
+          <strong>Your family remains the main chapter.</strong>
+        </div>
+      </section>
+
+      <section class="archive-tools" aria-labelledby="family-roll-title">
+        <form class="archive-search" role="search" (ngSubmit)="submitArchiveSearch()">
+          <span class="search-icon" aria-hidden="true"><i-lucide name="search" [size]="21"></i-lucide></span>
+          <label for="archive-query">
+            <span>Search generated + public trees</span>
+            <input
+              id="archive-query"
+              name="archiveQuery"
+              type="search"
+              autocomplete="off"
+              placeholder="Try Sachin, Ambani, your public trees…"
+              [(ngModel)]="archiveQuery"
+              (focus)="onArchiveSearchFocus()"
+              (input)="onArchiveSearchInput()"
+              (blur)="onArchiveSearchBlur()">
+          </label>
+          <div class="search-examples" aria-label="Example searches">
+            <button type="button" *ngFor="let story of featuredStories.slice(0, 3); trackBy: trackStory" (click)="archiveQuery = story.title; submitArchiveSearch()">
+              {{ story.title.replace('The ', '') }}
+            </button>
+          </div>
+          <button type="submit" class="search-submit" aria-label="Search public family stories">
+            <i-lucide name="arrow-right" [size]="19"></i-lucide>
+          </button>
+          <div *ngIf="archiveSearchDropdownVisible" class="search-dropdown" role="listbox" aria-label="Search suggestions">
+            <p *ngIf="publicTreeSearchLoading" class="search-dropdown__loading">Loading public trees…</p>
+            <button
+              *ngFor="let option of archiveSearchOptions"
+              type="button"
+              role="option"
+              [class.search-dropdown__option--generated]="option.kind === 'generated'"
+              (mousedown)="$event.preventDefault()"
+              (click)="openArchiveOption(option)">
+              <span>
+                <strong>{{ option.title }}</strong>
+                <small>{{ option.subtitle }}</small>
+              </span>
+              <em>{{ option.badge }}</em>
+            </button>
+          </div>
+          <p class="search-status" aria-live="polite">{{ archiveSearchStatus }}</p>
+        </form>
+
+        <div class="family-roll">
           <div class="family-roll__heading">
-            <p id="family-roll-title">Rolling archive</p>
-            <span>Famous families, dynasties, epics and creators</span>
+            <p id="family-roll-title">Public family stories</p>
+            <span>Explore for inspiration, then begin your own</span>
           </div>
           <div
             class="family-roll__viewport"
@@ -153,70 +256,6 @@
               </button>
             </div>
           </div>
-        </section>
-
-        <form class="archive-search" role="search" (ngSubmit)="submitArchiveSearch()">
-          <span class="search-icon" aria-hidden="true"><i-lucide name="search" [size]="21"></i-lucide></span>
-          <label for="archive-query">
-            <span>Search generated + public trees</span>
-            <input
-              id="archive-query"
-              name="archiveQuery"
-              type="search"
-              autocomplete="off"
-              placeholder="Try Sachin, Ambani, your public trees…"
-              [(ngModel)]="archiveQuery"
-              (focus)="onArchiveSearchFocus()"
-              (input)="onArchiveSearchInput()"
-              (blur)="onArchiveSearchBlur()">
-          </label>
-          <div class="search-examples" aria-label="Example searches">
-            <button type="button" *ngFor="let story of featuredStories.slice(0, 3); trackBy: trackStory" (click)="archiveQuery = story.title; submitArchiveSearch()">
-              {{ story.title.replace('The ', '') }}
-            </button>
-          </div>
-          <button type="submit" class="search-submit" aria-label="Search preview archive">
-            <i-lucide name="arrow-right" [size]="19"></i-lucide>
-          </button>
-          <div *ngIf="archiveSearchDropdownVisible" class="search-dropdown" role="listbox" aria-label="Search suggestions">
-            <p *ngIf="publicTreeSearchLoading" class="search-dropdown__loading">
-              Loading public treesâ€¦
-            </p>
-            <button
-              *ngFor="let option of archiveSearchOptions"
-              type="button"
-              role="option"
-              [class.search-dropdown__option--generated]="option.kind === 'generated'"
-              (mousedown)="$event.preventDefault()"
-              (click)="openArchiveOption(option)">
-              <span>
-                <strong>{{ option.title }}</strong>
-                <small>{{ option.subtitle }}</small>
-              </span>
-              <em>{{ option.badge }}</em>
-            </button>
-          </div>
-          <p class="search-status" aria-live="polite">{{ archiveSearchStatus }}</p>
-        </form>
-
-        <button type="button" class="scroll-cue" (click)="scrollTo('archive-intro')" aria-label="Continue to the story">
-          <span>Scroll to travel through time</span>
-          <i aria-hidden="true"></i>
-        </button>
-      </section>
-
-      <section id="archive-intro" class="intro-section">
-        <p class="section-number">01 · WHY FAMILIES</p>
-        <div class="intro-statement">
-          <h2>History is easier to remember when it has a face.</h2>
-          <p>
-            Dates tell us when something happened. Families reveal why: the promises, rivalries, migrations, mentorship and courage that moved from one life into another.
-          </p>
-        </div>
-        <div class="intro-note">
-          <i-lucide name="users" [size]="22"></i-lucide>
-          <span>Every public story leads back to one simple question:</span>
-          <strong>Who carried the story forward?</strong>
         </div>
       </section>
 
@@ -359,57 +398,13 @@
         </section>
       </section>
 
-      <section id="how-it-works" class="process-section" aria-labelledby="process-title">
-        <div class="process-heading">
-          <p class="section-number">02 · FROM CURIOSITY TO LEGACY</p>
-          <h2 id="process-title">Explore their story.<br><em>Then begin yours.</em></h2>
-        </div>
-
-        <ol class="process-steps">
-          <li>
-            <span class="process-index">01</span>
-            <span class="process-icon"><i-lucide name="search" [size]="20"></i-lucide></span>
-            <div><strong>Follow a remarkable family</strong><p>Move through people, generations, places and moments—not a flat list of dates.</p></div>
-          </li>
-          <li>
-            <span class="process-index">02</span>
-            <span class="process-icon"><i-lucide name="link-2" [size]="20"></i-lucide></span>
-            <div><strong>Understand the connection</strong><p>See the exact thread that joins one person to another in plain language.</p></div>
-          </li>
-          <li>
-            <span class="process-index">03</span>
-            <span class="process-icon"><i-lucide name="git-fork" [size]="20"></i-lucide></span>
-            <div><strong>Plant your first branch</strong><p>Add three names now. Invite the relative who remembers what comes next.</p></div>
-          </li>
-        </ol>
-      </section>
-
-      <section class="legacy-section" aria-labelledby="legacy-title">
-        <div class="legacy-map" aria-hidden="true">
-          <span class="legacy-node legacy-node--one">YOU</span>
-          <span class="legacy-node legacy-node--two">PARENT</span>
-          <span class="legacy-node legacy-node--three">STORY</span>
-          <i class="legacy-line legacy-line--one"></i>
-          <i class="legacy-line legacy-line--two"></i>
-        </div>
-        <div class="legacy-copy">
-          <p class="section-kicker">The defining moment</p>
-          <h2 id="legacy-title">Three names turn an empty canvas into <em>your</em> history.</h2>
-          <p>No account wall. No giant form. Start with what you remember and let your family help complete the missing branches.</p>
-          <button type="button" class="button button-gold" (click)="startGuidedSetup()">
-            Build my first branch
-            <i-lucide name="arrow-right" [size]="18"></i-lucide>
-          </button>
-        </div>
-      </section>
-
       <section class="final-cta" aria-labelledby="final-cta-title">
         <div class="final-cta__halo" aria-hidden="true"></div>
         <p class="section-kicker">Your chapter starts here</p>
         <h2 id="final-cta-title">How many generations can your family remember?</h2>
         <p>Begin with your name and two people before you. It takes less than a minute.</p>
         <button type="button" class="button button-gold" (click)="startGuidedSetup()">
-          Start with 3 names
+          Start my family tree
           <i-lucide name="arrow-right" [size]="18"></i-lucide>
         </button>
         <div class="final-trust">
@@ -424,7 +419,7 @@
           <span class="brand-symbol" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
           <span class="brand-name">My Family</span>
         </div>
-        <p>Discover the families that shaped history. Preserve the one that shaped you.</p>
+        <p>Your family is the story only you can preserve.</p>
         <div>
           <button type="button" (click)="manual.emit()">Blank canvas</button>
           <button type="button" (click)="importRequested.emit()">Import a tree</button>
@@ -539,10 +534,15 @@
 
             <footer class="builder-footer">
               <button type="button" class="builder-back" (click)="back()">{{ step === 1 ? 'Not ready yet' : 'Back' }}</button>
-              <button type="submit" class="button button-gold">
-                {{ primaryLabel }}
-                <i-lucide name="arrow-right" [size]="18"></i-lucide>
-              </button>
+              <div class="builder-footer-actions">
+                <button *ngIf="step === 2" type="button" class="builder-later" (click)="finish()">
+                  I’ll add them later
+                </button>
+                <button type="submit" class="button button-gold">
+                  {{ primaryLabel }}
+                  <i-lucide name="arrow-right" [size]="18"></i-lucide>
+                </button>
+              </div>
             </footer>
 
             <p class="builder-privacy"><i-lucide name="shield-check" [size]="15"></i-lucide> Your tree starts private. You choose when and with whom to share it.</p>

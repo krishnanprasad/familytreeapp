@@ -1,11 +1,13 @@
 import { TestBed } from '@angular/core/testing';
+import { appConfig } from '../app.config';
 import { Gender, TreeNode } from '../models/tree-node.model';
 import { PersonProfileComponent } from './person-profile.component';
 
 describe('PersonProfileComponent social profiles', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [PersonProfileComponent]
+      imports: [PersonProfileComponent],
+      providers: [...appConfig.providers]
     }).compileComponents();
   });
 
@@ -36,6 +38,27 @@ describe('PersonProfileComponent social profiles', () => {
     expect(link.href).toContain('in.linkedin.com/in/family-tester');
     expect(link.getAttribute('target')).toBe('_blank');
     expect(link.getAttribute('rel')).toContain('noopener');
+  });
+
+  it('shows the branch share action only when allowed and emits the selected person', () => {
+    const fixture = TestBed.createComponent(PersonProfileComponent);
+    const person = personWithSocialProfiles();
+    fixture.componentInstance.person = person;
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.action-button--share')).toBeNull();
+
+    fixture.componentInstance.canShare = true;
+    const shareSpy = spyOn(fixture.componentInstance.share, 'emit');
+    fixture.detectChanges();
+
+    const shareButton = fixture.nativeElement.querySelector('.action-button--share') as HTMLButtonElement;
+    expect(shareButton).toBeTruthy();
+    expect(shareButton.textContent).toContain('Share branch');
+    expect(shareButton.getAttribute('aria-label')).toContain(person.name);
+
+    shareButton.click();
+    expect(shareSpy).toHaveBeenCalledOnceWith(person);
   });
 });
 

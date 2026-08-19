@@ -11,14 +11,14 @@ describe('OnboardingComponent', () => {
     }).compileComponents();
   });
 
-  it('renders the living archive landing experience', () => {
+  it('renders the private family-tree landing experience', () => {
     const fixture = TestBed.createComponent(OnboardingComponent);
     fixture.detectChanges();
     const page = fixture.nativeElement as HTMLElement;
 
-    expect(page.querySelector('h1')?.textContent).toContain('Discover the families');
-    expect(page.textContent).toContain('A living archive of human stories');
-    expect(page.textContent).toContain('Rolling archive');
+    expect(page.querySelector('h1')?.textContent).toContain('Build the family tree');
+    expect(page.textContent).toContain('Private family tree · Free to begin');
+    expect(page.textContent).toContain('Three names today');
     expect(page.querySelectorAll('.roll-card').length).toBe(20);
     expect(page.querySelectorAll('.category-card').length).toBe(8);
   });
@@ -152,6 +152,30 @@ describe('OnboardingComponent', () => {
     expect(result?.selfName).toBe('Maya Rao');
     expect(result?.parentOneName).toBe('Asha Rao');
     expect(result?.parentTwoName).toBe('Dev Rao');
+  });
+
+  it('lets users add relatives later while preserving names already entered', () => {
+    const fixture = TestBed.createComponent(OnboardingComponent);
+    const component = fixture.componentInstance;
+    let result: GuidedTreeInput | undefined;
+    component.complete.subscribe(value => result = value);
+    fixture.detectChanges();
+
+    component.startGuidedSetup();
+    component.form.selfName = 'Maya Rao';
+    component.advance();
+    component.form.parentOneName = 'Asha Rao';
+    fixture.detectChanges();
+
+    const laterButton = Array.from(
+      (fixture.nativeElement as HTMLElement).querySelectorAll('button')
+    ).find(button => button.textContent?.trim() === 'I’ll add them later') as HTMLButtonElement | undefined;
+
+    expect(laterButton).toBeDefined();
+    laterButton?.click();
+    expect(result?.selfName).toBe('Maya Rao');
+    expect(result?.parentOneName).toBe('Asha Rao');
+    expect(result?.parentTwoName).toBeUndefined();
   });
 
   it('offers Google fast join while keeping the guest path available', () => {

@@ -11,6 +11,7 @@ import {
   ViewChild
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { LucideAngularModule } from 'lucide-angular';
 import {
   LifeEventType,
   SocialPlatform,
@@ -42,7 +43,7 @@ type EventRequest = {
 @Component({
   selector: 'app-person-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule],
   template: `
     <ng-container *ngIf="person as activePerson">
       <div
@@ -143,6 +144,16 @@ type EventRequest = {
             </button>
             <button type="button" class="action-button" (click)="addSpouse.emit(activePerson)">
               <span aria-hidden="true">+</span> Add partner
+            </button>
+            <button
+              *ngIf="canShare"
+              type="button"
+              class="action-button action-button--share"
+              [attr.aria-label]="'Share branch starting at ' + activePerson.name"
+              [title]="'Invite someone to help complete the branch starting at ' + activePerson.name"
+              (click)="share.emit(activePerson)">
+              <i-lucide name="share-2" [size]="15" aria-hidden="true"></i-lucide>
+              Share branch
             </button>
           </div>
         </header>
@@ -799,7 +810,11 @@ type EventRequest = {
     }
 
     .action-button {
-      min-height: 39px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 44px;
       padding: 9px 10px;
       color: #31513e;
       font-size: 12px;
@@ -1524,12 +1539,14 @@ export class PersonProfileComponent implements OnChanges {
   @Input() relatives: RelativeLink[] = [];
   @Input() hints: string[] = [];
   @Input() canAddParent = false;
+  @Input() canShare = false;
 
   @Output() readonly close = new EventEmitter<void>();
   @Output() readonly edit = new EventEmitter<TreeNode>();
   @Output() readonly addParent = new EventEmitter<TreeNode>();
   @Output() readonly addChild = new EventEmitter<TreeNode>();
   @Output() readonly addSpouse = new EventEmitter<TreeNode>();
+  @Output() readonly share = new EventEmitter<TreeNode>();
   @Output() readonly addStory = new EventEmitter<StoryRequest>();
   @Output() readonly addEvent = new EventEmitter<EventRequest>();
   @Output() readonly photoSelected = new EventEmitter<{ personId: string; file: File }>();

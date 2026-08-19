@@ -911,6 +911,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.shareOpen = true;
     this.latestShareLink = null;
     this.shareMessage = '';
+    if (person) {
+      this.shareMode = 'invite';
+      this.shareRecipientEmail = '';
+    }
     this.shareScope = person ? 'branch' : 'tree';
     this.shareSelectedPersonId = person?.id ?? this.selectedPersonId ?? this.treeData?.id ?? '';
     this.shareSelectedPersonName = person?.name ?? this.selectedPerson?.name ?? this.treeData?.name ?? '';

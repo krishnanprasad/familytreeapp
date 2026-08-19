@@ -121,6 +121,50 @@ describe('AppComponent', () => {
     expect(nameInput.readOnly).toBeFalse();
   });
 
+  it('should open branch sharing from the selected person profile', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const app = fixture.componentInstance;
+    const person = app.treeData!;
+    const shareSpy = spyOn(app, 'openShareDialog').and.resolveTo();
+
+    app.selectPerson(person);
+    fixture.detectChanges();
+
+    const shareButton = fixture.nativeElement.querySelector('.action-button--share') as HTMLButtonElement;
+    expect(shareButton).toBeTruthy();
+    shareButton.click();
+
+    expect(shareSpy).toHaveBeenCalledOnceWith(person);
+  });
+
+  it('should default card sharing to a private branch-editor invite without a stale email', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const app = fixture.componentInstance;
+    const person = app.treeData!;
+    const authService = TestBed.inject(AuthService);
+    spyOnProperty(authService, 'currentUser', 'get').and.returnValue({
+      uid: 'owner-one',
+      displayName: 'Prasad',
+      email: 'prasad@example.com',
+      photoURL: null
+    });
+    spyOn(app, 'refreshShareLinks').and.resolveTo();
+    app.shareMode = 'public';
+    app.shareRecipientEmail = 'previous@example.com';
+
+    await app.openShareDialog(person);
+
+    expect(app.shareOpen).toBeTrue();
+    expect(app.shareMode).toBe('invite');
+    expect(app.shareScope).toBe('branch');
+    expect(app.shareRole).toBe('branchEditor');
+    expect(app.shareSelectedPersonId).toBe(person.id);
+    expect(app.shareSelectedPersonName).toBe(person.name);
+    expect(app.shareRecipientEmail).toBe('');
+  });
+
   it('should save age, day-first birth date, and current location from the edit form', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
