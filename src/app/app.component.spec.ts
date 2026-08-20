@@ -205,6 +205,50 @@ describe('AppComponent', () => {
     expect(updatedPerson.location).toBe('Salem, Tamil Nadu, India');
   });
 
+  it('should use native date pickers and load saved ISO dates for editing', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const app = fixture.componentInstance;
+    const person = app.treeData!;
+    person.birthDate = '1982-04-15';
+
+    app.openPersonForm(person, 'edit');
+    fixture.detectChanges();
+
+    const birthDate = fixture.nativeElement.querySelector('input[name="birthDate"]') as HTMLInputElement;
+    expect(birthDate.type).toBe('date');
+    expect(birthDate.value).toBe('1982-04-15');
+
+    app.formData.isAlive = false;
+    fixture.detectChanges();
+    const deathDate = fixture.nativeElement.querySelector('input[name="deathDate"]') as HTMLInputElement;
+    expect(deathDate.type).toBe('date');
+  });
+
+  it('should use native date pickers for relationship start and end dates', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const app = fixture.componentInstance;
+    const person = app.treeData!;
+
+    app.openPersonForm(person, 'add_spouse');
+    fixture.detectChanges();
+    const relationshipStart = fixture.nativeElement.querySelector('input[name="relationshipStartDate"]') as HTMLInputElement;
+    expect(relationshipStart.type).toBe('date');
+
+    app.formData.name = 'Date Picker Partner';
+    app.formData.relationshipStartDate = '2001-02-03';
+    app.handleSubmit();
+    fixture.detectChanges();
+    const partner = app.selectedPerson!;
+    expect(partner.relationshipStartDate).toBe('2001-02-03');
+
+    app.openPersonForm(partner, 'edit');
+    fixture.detectChanges();
+    const relationshipEnd = fixture.nativeElement.querySelector('input[name="relationshipEndDate"]') as HTMLInputElement;
+    expect(relationshipEnd.type).toBe('date');
+  });
+
   it('should save social handles and expose only profiles marked public', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();

@@ -979,7 +979,7 @@
         </label>
         <label class="field" *ngIf="actionType === 'add_spouse'">
           <span>Relationship began</span>
-          <input type="text" inputmode="numeric" name="relationshipStartDate" placeholder="dd-mm-yyyy" [(ngModel)]="formData.relationshipStartDate">
+          <input type="date" name="relationshipStartDate" [(ngModel)]="formData.relationshipStartDate">
         </label>
       </div>
 
@@ -990,8 +990,8 @@
 
       <div *ngIf="advancedDetailsOpen" class="form-section advanced-fields">
         <div class="form-grid">
-          <label class="field"><span>Birth date</span><input type="text" inputmode="numeric" name="birthDate" placeholder="dd-mm-yyyy" [(ngModel)]="formData.birthDate"></label>
-          <label class="field" *ngIf="!formData.isAlive"><span>Death date</span><input type="text" inputmode="numeric" name="deathDate" placeholder="dd-mm-yyyy" [(ngModel)]="formData.deathDate"></label>
+          <label class="field"><span>Birth date</span><input type="date" name="birthDate" [(ngModel)]="formData.birthDate"></label>
+          <label class="field" *ngIf="!formData.isAlive"><span>Death date</span><input type="date" name="deathDate" [(ngModel)]="formData.deathDate"></label>
           <label class="field field--wide"><span>Birthplace</span><input type="text" name="birthPlace" placeholder="Town, city or country" [(ngModel)]="formData.birthPlace"></label>
           <label class="field field--wide"><span>Alternate names</span><input type="text" name="alternateNames" placeholder="Nickname, maiden name (comma separated)" [(ngModel)]="formData.alternateNames"></label>
           <label class="field field--wide"><span>Tags</span><input type="text" name="tags" placeholder="e.g. Rao branch, Veteran" [(ngModel)]="formData.tags"></label>
@@ -1031,7 +1031,7 @@
           <label class="field field--wide"><span>Notes</span><textarea name="notes" rows="4" placeholder="A few details worth remembering…" [(ngModel)]="formData.notes"></textarea></label>
           <ng-container *ngIf="actionType === 'edit' && currentNode?.type === 'spouse'">
             <label class="field"><span>Partnership type</span><select name="editPartnerRelationship" [(ngModel)]="formData.partnerRelationshipType"><option *ngFor="let option of partnerRelationshipOptions" [ngValue]="option.value">{{ option.label }}</option></select></label>
-            <label class="field"><span>Relationship ended</span><input type="text" inputmode="numeric" name="relationshipEndDate" placeholder="dd-mm-yyyy" [(ngModel)]="formData.relationshipEndDate"></label>
+            <label class="field"><span>Relationship ended</span><input type="date" name="relationshipEndDate" [(ngModel)]="formData.relationshipEndDate"></label>
           </ng-container>
         </div>
       </div>

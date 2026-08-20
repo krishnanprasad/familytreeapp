@@ -2304,8 +2304,20 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private dateForForm(value?: string): string {
     if (!value) return '';
-    const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-    return match ? `${match[3]}-${match[2]}-${match[1]}` : value;
+    const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (isoMatch && this.validDateParts(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]))) {
+      return value;
+    }
+
+    // Keep previously entered day-first dates usable after upgrading the
+    // field from free text to the browser's native ISO date control.
+    const dayFirstMatch = value.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    if (!dayFirstMatch) return '';
+    return this.validDateParts(
+      Number(dayFirstMatch[3]),
+      Number(dayFirstMatch[2]),
+      Number(dayFirstMatch[1])
+    ) ?? '';
   }
 
   private splitList(value: string): string[] {
