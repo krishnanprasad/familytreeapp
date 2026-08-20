@@ -388,6 +388,54 @@ describe('AppComponent', () => {
     expect(app.selectedPerson?.id).toBe(child?.id);
   });
 
+  it('should warn about an existing person without blocking the add action', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const app = fixture.componentInstance;
+    const parent = app.treeData!;
+
+    app.openPersonForm(parent, 'add_child');
+    app.formData.name = `  ${parent.name.toUpperCase()}  `;
+    fixture.detectChanges();
+
+    const warning = fixture.nativeElement.querySelector('.duplicate-person-warning') as HTMLElement;
+    const submit = fixture.nativeElement.querySelector('.modal-footer .button-primary') as HTMLButtonElement;
+    expect(warning).toBeTruthy();
+    expect(warning.textContent).toContain(parent.name);
+    expect(warning.textContent).toContain('same name');
+    expect(submit.textContent).toContain('Add anyway');
+
+    app.handleSubmit();
+    fixture.detectChanges();
+
+    expect(app.treeData?.children.some(person => person.name === parent.name.toUpperCase())).toBeTrue();
+  });
+
+  it('should require a supporting detail before warning on a one-character name typo', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const app = fixture.componentInstance;
+    const parent = app.treeData!;
+
+    app.openPersonForm(parent, 'add_child');
+    app.formData.name = `${parent.name.slice(0, -1)}x`;
+    expect(app.duplicatePersonMatches).toEqual([]);
+
+    app.formData.location = parent.location;
+    expect(app.duplicatePersonMatches[0]?.personId).toBe(parent.id);
+    expect(app.duplicatePersonMatches[0]?.reason).toContain('very similar name');
+  });
+
+  it('should not show a duplicate warning while editing the existing person', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const app = fixture.componentInstance;
+
+    app.openPersonForm(app.treeData!, 'edit');
+
+    expect(app.duplicatePersonMatches).toEqual([]);
+  });
+
   it('should add a child below an existing child, not only from the first level', () => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();

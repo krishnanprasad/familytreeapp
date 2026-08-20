@@ -848,6 +848,26 @@
             <span>Full name <b>*</b></span>
             <input required type="text" name="name" placeholder="e.g. Anika Menon" [(ngModel)]="formData.name" autofocus>
           </label>
+          <ng-container *ngIf="duplicatePersonMatches as duplicateMatches">
+            <aside
+              *ngIf="duplicateMatches.length"
+              class="duplicate-person-warning field--wide"
+              role="status"
+              aria-live="polite"
+              aria-label="Possible duplicate person warning">
+              <i-lucide name="triangle-alert" [size]="18" aria-hidden="true"></i-lucide>
+              <div>
+                <strong>This person may already be in your tree</strong>
+                <p>Check these matches before adding another record. You can still add this person.</p>
+                <ul>
+                  <li *ngFor="let match of duplicateMatches">
+                    <span><b>{{ match.name }}</b><small>{{ match.context }}</small></span>
+                    <em>{{ match.reason }}</em>
+                  </li>
+                </ul>
+              </div>
+            </aside>
+          </ng-container>
           <div class="field">
             <span>Gender</span>
             <div class="segmented-choice" role="radiogroup" aria-label="Gender">
@@ -1021,7 +1041,7 @@
         <div>
           <button type="button" class="button-secondary" (click)="closeModal()">Cancel</button>
           <button type="submit" class="button-primary" [disabled]="!formData.name.trim()">
-            {{ actionType === 'edit' ? 'Save changes' : (actionType === 'add_parent' ? 'Add parent' : 'Add to tree') }}
+            {{ actionType === 'edit' ? 'Save changes' : (duplicatePersonMatches.length ? 'Add anyway' : (actionType === 'add_parent' ? 'Add parent' : 'Add to tree')) }}
           </button>
         </div>
       </footer>

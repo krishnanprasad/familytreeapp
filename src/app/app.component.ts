@@ -68,6 +68,14 @@ interface PerformanceSnapshot {
   lastMeasuredAt: string;
 }
 
+interface DuplicatePersonMatch {
+  personId: string;
+  name: string;
+  context: string;
+  reason: string;
+  score: number;
+}
+
 type ShareMode = 'public' | 'invite';
 
 @Component({
@@ -630,6 +638,75 @@ export class AppComponent implements OnInit, OnDestroy {
       const updatedPerson = this.treeService.findNode(this.treeService.getTree(), editedPersonId);
       if (updatedPerson) this.selectPerson(updatedPerson, false);
     }
+  }
+
+  /**
+   * Advisory duplicate detection for new relationships. A match never blocks
+   * saving: it gives the editor enough context to check the existing person.
+   */
+  get duplicatePersonMatches(): DuplicatePersonMatch[] {
+    if (this.actionType === 'edit') return [];
+
+    const name = this.normalizePersonIdentity(this.formData.name);
+    const email = this.formData.email.trim().toLowerCase();
+    if (name.length < 2 && !email) return [];
+
+    const enteredNames = [name, ...this.splitList(this.formData.alternateNames)
+      .map(value => this.normalizePersonIdentity(value))]
+      .filter(Boolean);
+    const birthDate = this.comparableDate(this.formData.birthDate);
+    const age = this.validComparableAge(this.formData.age);
+    const location = this.normalizePersonIdentity(this.formData.location);
+
+    return this.personIndex
+      .map(entry => {
+        const person = entry.node;
+        const existingNames = [person.name, ...(person.alternateNames ?? [])]
+          .map(value => this.normalizePersonIdentity(value))
+          .filter(Boolean);
+        const exactName = enteredNames.some(value => existingNames.includes(value));
+        const exactEmail = Boolean(email && person.email?.trim().toLowerCase() === email);
+        const sameBirthDate = Boolean(birthDate && this.comparableDate(person.birthDate ?? '') === birthDate);
+        const sameAge = age !== null && person.age > 0 && person.age === age;
+        const existingLocation = this.normalizePersonIdentity(person.location);
+        const sameLocation = Boolean(location && existingLocation && location === existingLocation);
+        const supportingDetail = exactEmail || sameBirthDate || sameAge || sameLocation;
+        const nearName = !exactName && name.length >= 5 && existingNames.some(value =>
+          Math.abs(value.length - name.length) <= 1 && this.editDistanceAtMostOne(name, value)
+        );
+
+        if (!exactEmail && !exactName && !(nearName && supportingDetail)) return null;
+
+        let score = exactEmail ? 100 : exactName ? 70 : 45;
+        if (sameBirthDate) score += 20;
+        if (sameAge) score += 10;
+        if (sameLocation) score += 8;
+
+        const reasonParts: string[] = [];
+        if (exactEmail) reasonParts.push('same email');
+        if (exactName) reasonParts.push('same name');
+        else if (nearName) reasonParts.push('very similar name');
+        if (sameBirthDate) reasonParts.push('same birth date');
+        else if (sameAge) reasonParts.push('same age');
+        if (sameLocation) reasonParts.push('same location');
+
+        const contextParts = [
+          person.age > 0 ? `${person.age} years` : '',
+          person.location?.trim() ?? '',
+          entry.generation > 0 ? `Generation ${entry.generation}` : 'Top generation'
+        ].filter(Boolean);
+
+        return {
+          personId: person.id,
+          name: person.name,
+          context: contextParts.join(' · '),
+          reason: reasonParts.join(', '),
+          score
+        } satisfies DuplicatePersonMatch;
+      })
+      .filter((match): match is DuplicatePersonMatch => match !== null)
+      .sort((left, right) => right.score - left.score || left.name.localeCompare(right.name))
+      .slice(0, 3);
   }
 
   closeModal(): void {
@@ -2237,6 +2314,54 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private normalizeText(value: string): string {
     return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+
+  private normalizePersonIdentity(value: string): string {
+    return this.normalizeText(value)
+      .replace(/[^a-z0-9]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private comparableDate(value: string): string {
+    const trimmed = value.trim();
+    const iso = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (iso) return `${iso[1]}-${iso[2].padStart(2, '0')}-${iso[3].padStart(2, '0')}`;
+    const dayFirst = trimmed.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/);
+    return dayFirst ? `${dayFirst[3]}-${dayFirst[2].padStart(2, '0')}-${dayFirst[1].padStart(2, '0')}` : '';
+  }
+
+  private validComparableAge(value: string): number | null {
+    const trimmed = value.trim();
+    if (!/^\d{1,3}$/.test(trimmed)) return null;
+    const age = Number(trimmed);
+    return age >= 0 && age <= 130 ? age : null;
+  }
+
+  private editDistanceAtMostOne(left: string, right: string): boolean {
+    if (left === right) return true;
+    if (Math.abs(left.length - right.length) > 1) return false;
+
+    let leftIndex = 0;
+    let rightIndex = 0;
+    let edits = 0;
+    while (leftIndex < left.length && rightIndex < right.length) {
+      if (left[leftIndex] === right[rightIndex]) {
+        leftIndex += 1;
+        rightIndex += 1;
+        continue;
+      }
+      edits += 1;
+      if (edits > 1) return false;
+      if (left.length > right.length) leftIndex += 1;
+      else if (right.length > left.length) rightIndex += 1;
+      else {
+        leftIndex += 1;
+        rightIndex += 1;
+      }
+    }
+    if (leftIndex < left.length || rightIndex < right.length) edits += 1;
+    return edits <= 1;
   }
 
   private isValidEmail(email: string): boolean {
