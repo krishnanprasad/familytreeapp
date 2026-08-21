@@ -1,6 +1,12 @@
+const defaultAuthDomain = 'familytreeapp-d7c68.firebaseapp.com';
+const productionAuthDomain = 'familytreeapp-d7c68.web.app';
+const runtimeHostname = typeof window === 'undefined' ? '' : window.location.hostname;
+
 export const firebaseConfig = {
   apiKey: 'AIzaSyAGY0JKBRm2Qsf145TSK74yPJ_cp4BordY',
-  authDomain: 'familytreeapp-d7c68.firebaseapp.com',
+  // Keep the OAuth helper on the same origin in production. Modern browsers
+  // block the cross-site storage handshake used by redirect sign-in.
+  authDomain: runtimeHostname === productionAuthDomain ? productionAuthDomain : defaultAuthDomain,
   projectId: 'familytreeapp-d7c68',
   storageBucket: 'familytreeapp-d7c68.firebasestorage.app',
   messagingSenderId: '853314984739',

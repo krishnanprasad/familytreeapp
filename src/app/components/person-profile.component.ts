@@ -11,8 +11,11 @@ import {
   ViewChild
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { LucideAngularModule } from 'lucide-angular';
 import {
   LifeEventType,
+  SocialPlatform,
+  SocialProfile,
   TreeNode
 } from '../models/tree-node.model';
 
@@ -40,7 +43,7 @@ type EventRequest = {
 @Component({
   selector: 'app-person-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LucideAngularModule],
   template: `
     <ng-container *ngIf="person as activePerson">
       <div
@@ -53,7 +56,7 @@ type EventRequest = {
         #drawer
         class="profile-drawer"
         role="dialog"
-        aria-modal="true"
+        aria-modal="false"
         aria-labelledby="person-profile-title"
         tabindex="-1">
         <header class="profile-hero">
@@ -102,6 +105,23 @@ type EventRequest = {
                 Also known as {{ activePerson.alternateNames?.join(', ') }}
               </p>
               <p class="life-summary">{{ lifeSummary(activePerson) }}</p>
+              <ng-container *ngIf="publicSocialProfiles(activePerson) as socialProfiles">
+                <nav
+                  *ngIf="socialProfiles.length"
+                  class="social-links"
+                  [attr.aria-label]="'Public social profiles for ' + activePerson.name">
+                  <a
+                    *ngFor="let profile of socialProfiles"
+                    [href]="socialProfileUrl(profile)"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    [title]="'Open ' + socialPlatformLabel(profile.platform)"
+                    [attr.aria-label]="'Open ' + socialPlatformLabel(profile.platform) + ' profile for ' + activePerson.name">
+                    <span class="social-platform-name">{{ socialPlatformLabel(profile.platform) }}</span>
+                    <span class="social-handle">{{ socialProfileDisplay(profile) }}</span>
+                  </a>
+                </nav>
+              </ng-container>
             </div>
           </div>
 
@@ -111,11 +131,29 @@ type EventRequest = {
             <button type="button" class="action-button action-button--primary" (click)="edit.emit(activePerson)">
               Edit profile
             </button>
+            <button
+              type="button"
+              class="action-button"
+              [disabled]="!canAddParent"
+              [title]="canAddParent ? 'Add a parent above this person' : 'Add parent is available for the top person'"
+              (click)="addParent.emit(activePerson)">
+              <span aria-hidden="true">+</span> Add parent
+            </button>
             <button type="button" class="action-button" (click)="addChild.emit(activePerson)">
               <span aria-hidden="true">+</span> Add child
             </button>
             <button type="button" class="action-button" (click)="addSpouse.emit(activePerson)">
               <span aria-hidden="true">+</span> Add partner
+            </button>
+            <button
+              *ngIf="canShare"
+              type="button"
+              class="action-button action-button--share"
+              [attr.aria-label]="'Share branch starting at ' + activePerson.name"
+              [title]="'Invite someone to help complete the branch starting at ' + activePerson.name"
+              (click)="share.emit(activePerson)">
+              <i-lucide name="share-2" [size]="15" aria-hidden="true"></i-lucide>
+              Share branch
             </button>
           </div>
         </header>
@@ -453,6 +491,7 @@ type EventRequest = {
       position: fixed;
       inset: 0;
       z-index: 1090;
+      pointer-events: none;
       background: rgb(19 29 23 / 0.38);
       backdrop-filter: blur(2px);
       animation: profile-fade-in 180ms ease-out;
@@ -690,6 +729,60 @@ type EventRequest = {
       font-style: italic;
     }
 
+    .social-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 9px;
+    }
+
+    .social-links a {
+      min-width: 0;
+      min-height: 38px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      max-width: 100%;
+      padding: 6px 9px;
+      color: #244737;
+      text-decoration: none;
+      background: rgb(255 255 255 / 0.78);
+      border: 1px solid rgb(39 103 73 / 0.18);
+      border-radius: 999px;
+      box-shadow: 0 2px 7px rgb(29 64 42 / 0.06);
+      transition: border-color 150ms ease, background 150ms ease, transform 150ms ease;
+    }
+
+    .social-links a:hover {
+      background: #ffffff;
+      border-color: rgb(39 103 73 / 0.42);
+      transform: translateY(-1px);
+    }
+
+    .social-links a:focus-visible {
+      outline: 3px solid rgb(39 103 73 / 0.24);
+      outline-offset: 2px;
+    }
+
+    .social-platform-name {
+      flex: 0 0 auto;
+      color: #2f694d;
+      font-size: 9px;
+      font-weight: 850;
+      letter-spacing: 0.035em;
+      text-transform: uppercase;
+    }
+
+    .social-handle {
+      min-width: 0;
+      overflow: hidden;
+      color: #43564a;
+      font-size: 10px;
+      font-weight: 700;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     .photo-message {
       margin: 10px 0 -4px;
       padding-left: 124px;
@@ -717,7 +810,11 @@ type EventRequest = {
     }
 
     .action-button {
-      min-height: 39px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 44px;
       padding: 9px 10px;
       color: #31513e;
       font-size: 12px;
@@ -729,6 +826,12 @@ type EventRequest = {
       background: #ffffff;
       border-color: #9eb8a4;
       transform: translateY(-1px);
+    }
+
+    .action-button:disabled {
+      opacity: 0.48;
+      cursor: not-allowed;
+      transform: none;
     }
 
     .action-button--primary {
@@ -1360,6 +1463,10 @@ type EventRequest = {
         font-size: 27px;
       }
 
+      .social-links a {
+        min-height: 44px;
+      }
+
       .photo-message {
         padding-left: 101px;
       }
@@ -1431,11 +1538,15 @@ export class PersonProfileComponent implements OnChanges {
   @Input() person: TreeNode | null = null;
   @Input() relatives: RelativeLink[] = [];
   @Input() hints: string[] = [];
+  @Input() canAddParent = false;
+  @Input() canShare = false;
 
   @Output() readonly close = new EventEmitter<void>();
   @Output() readonly edit = new EventEmitter<TreeNode>();
+  @Output() readonly addParent = new EventEmitter<TreeNode>();
   @Output() readonly addChild = new EventEmitter<TreeNode>();
   @Output() readonly addSpouse = new EventEmitter<TreeNode>();
+  @Output() readonly share = new EventEmitter<TreeNode>();
   @Output() readonly addStory = new EventEmitter<StoryRequest>();
   @Output() readonly addEvent = new EventEmitter<EventRequest>();
   @Output() readonly photoSelected = new EventEmitter<{ personId: string; file: File }>();
@@ -1594,6 +1705,89 @@ export class PersonProfileComponent implements OnChanges {
     }
 
     return person.location || `${person.age} ${person.age === 1 ? 'year' : 'years'} old`;
+  }
+
+  publicSocialProfiles(person: TreeNode): SocialProfile[] {
+    return (person.socialProfiles ?? []).filter(profile => profile.isPublic && Boolean(profile.handle.trim()));
+  }
+
+  socialPlatformLabel(platform: SocialPlatform): string {
+    const labels: Record<SocialPlatform, string> = {
+      instagram: 'Instagram',
+      facebook: 'Facebook',
+      snapchat: 'Snapchat',
+      x: 'X',
+      linkedin: 'LinkedIn',
+      youtube: 'YouTube',
+      tiktok: 'TikTok'
+    };
+    return labels[platform];
+  }
+
+  socialProfileDisplay(profile: SocialProfile): string {
+    const value = profile.handle.trim();
+    const urlValue = this.socialUrlFromInput(value, profile.platform);
+    const handlePlatforms: SocialPlatform[] = ['instagram', 'snapchat', 'x', 'youtube', 'tiktok'];
+    let displayValue = value;
+
+    if (urlValue) {
+      try {
+        const parsed = new URL(urlValue);
+        const pathPart = parsed.pathname.split('/').filter(Boolean).pop();
+        displayValue = pathPart ? decodeURIComponent(pathPart) : parsed.hostname.replace(/^www\./, '');
+      } catch {
+        displayValue = value;
+      }
+    }
+
+    displayValue = displayValue.replace(/^@/, '');
+    return handlePlatforms.includes(profile.platform) ? `@${displayValue}` : displayValue;
+  }
+
+  socialProfileUrl(profile: SocialProfile): string {
+    const value = profile.handle.trim();
+    const enteredUrl = this.socialUrlFromInput(value, profile.platform);
+    if (enteredUrl) return enteredUrl;
+
+    const handle = encodeURIComponent(value.replace(/^@/, ''));
+    const profileBases: Record<SocialPlatform, string> = {
+      instagram: 'https://www.instagram.com/',
+      facebook: 'https://www.facebook.com/',
+      snapchat: 'https://www.snapchat.com/add/',
+      x: 'https://x.com/',
+      linkedin: 'https://www.linkedin.com/in/',
+      youtube: 'https://www.youtube.com/@',
+      tiktok: 'https://www.tiktok.com/@'
+    };
+    return `${profileBases[profile.platform]}${handle}`;
+  }
+
+  private socialUrlFromInput(value: string, platform: SocialPlatform): string | null {
+    const hasProtocol = /^https?:\/\//i.test(value);
+    const looksLikeWebAddress = /^(?:www\.)?[a-z0-9.-]+\.[a-z]{2,}(?:[/?#]|$)/i.test(value);
+    if (!hasProtocol && !looksLikeWebAddress) return null;
+
+    try {
+      const parsed = new URL(hasProtocol ? value : `https://${value}`);
+      const allowedDomains: Record<SocialPlatform, string[]> = {
+        instagram: ['instagram.com'],
+        facebook: ['facebook.com', 'fb.com'],
+        snapchat: ['snapchat.com'],
+        x: ['x.com', 'twitter.com'],
+        linkedin: ['linkedin.com'],
+        youtube: ['youtube.com', 'youtu.be'],
+        tiktok: ['tiktok.com']
+      };
+      const hostname = parsed.hostname.toLowerCase().replace(/^www\./, '');
+      const isMatchingPlatform = allowedDomains[platform].some(domain =>
+        hostname === domain || hostname.endsWith(`.${domain}`)
+      );
+      if (!isMatchingPlatform) return null;
+      parsed.protocol = 'https:';
+      return parsed.toString();
+    } catch {
+      return null;
+    }
   }
 
   relationshipLabel(person: TreeNode): string {

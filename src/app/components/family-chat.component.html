@@ -1,0 +1,155 @@
+<button
+  type="button"
+  class="assistant-launcher"
+  [class.assistant-launcher--open]="open"
+  (click)="toggle()"
+  [attr.aria-expanded]="open"
+  aria-controls="family-assistant-panel"
+  aria-label="Open family helper">
+  <i-lucide [name]="open ? 'x' : 'sparkles'" [size]="20"></i-lucide>
+  <span *ngIf="!open">Family Helper</span>
+</button>
+
+<section
+  *ngIf="open"
+  id="family-assistant-panel"
+  class="assistant-panel"
+  aria-label="Family helper">
+  <header class="assistant-header">
+    <div class="assistant-mark"><i-lucide name="sparkles" [size]="17"></i-lucide></div>
+    <div>
+      <strong>Family Helper</strong>
+      <span>Tell me what you want to add or update</span>
+    </div>
+    <button type="button" (click)="close()" aria-label="Close family helper">
+      <i-lucide name="x" [size]="17"></i-lucide>
+    </button>
+  </header>
+
+  <div #messageList class="assistant-messages" aria-live="polite">
+    <div *ngIf="!messages.length" class="assistant-welcome">
+      <div><i-lucide name="git-fork" [size]="20"></i-lucide></div>
+      <strong>What should I change?</strong>
+      <p>I can add relatives or update details. I ask when a name or relationship is unclear, and you review every change.</p>
+      <div class="assistant-examples" *ngIf="isSignedIn && canEdit">
+        <button *ngFor="let example of examples" type="button" (click)="useExample(example)">{{ example }}</button>
+      </div>
+    </div>
+
+    <section *ngIf="activeTask as task" class="assistant-task" [attr.data-status]="task.status" aria-label="Current family helper task">
+      <header>
+        <span class="assistant-task__icon"><i-lucide [name]="task.intent === 'add' ? 'user-round-plus' : 'pencil'" [size]="18"></i-lucide></span>
+        <div>
+          <small>Current task</small>
+          <strong>{{ task.title }}</strong>
+        </div>
+        <span class="assistant-task__status">{{ task.status === 'ready' ? 'Ready' : 'In progress' }}</span>
+      </header>
+      <p>{{ task.summary }}</p>
+      <ul *ngIf="task.knownDetails.length">
+        <li *ngFor="let detail of task.knownDetails.slice(0, 5)">
+          <i-lucide name="circle-check" [size]="15"></i-lucide>
+          <span>{{ detail }}</span>
+        </li>
+      </ul>
+      <div *ngIf="task.nextQuestion" class="assistant-task__next">
+        <span>One thing at a time</span>
+        <strong>{{ task.nextQuestion }}</strong>
+      </div>
+      <button type="button" class="assistant-task__cancel" (click)="draft = 'Cancel'; submit()" [disabled]="busy || applying">
+        Cancel this request
+      </button>
+    </section>
+
+    <div
+      *ngFor="let message of messages; trackBy: trackMessage"
+      class="assistant-message"
+      [class.assistant-message--user]="message.role === 'user'">
+      <span>{{ message.text }}</span>
+    </div>
+
+    <div *ngIf="busy || historyLoading" class="assistant-thinking" role="status">
+      <i></i><i></i><i></i><span>{{ historyLoading ? 'Loading saved chat…' : 'Reading the tree…' }}</span>
+    </div>
+
+    <section *ngIf="pendingPlan as plan" class="change-plan" aria-label="Proposed family tree changes">
+      <div class="change-plan__heading">
+        <div>
+          <span>Review before applying</span>
+          <strong>{{ plan.operations.length }} {{ plan.operations.length === 1 ? 'change' : 'changes' }}</strong>
+        </div>
+        <small>{{ plan.model || 'OpenAI' }}</small>
+      </div>
+      <div class="change-operation" *ngFor="let operation of plan.operations; trackBy: trackOperation" [attr.data-operation]="operation.type">
+        <span><i-lucide [name]="operationIcon(operation)" [size]="14"></i-lucide></span>
+        <div>
+          <strong>{{ operation.type | titlecase }}{{ operation.relation !== 'none' ? ' ' + operation.relation : '' }}</strong>
+          <p>{{ operation.summary }}</p>
+        </div>
+      </div>
+      <div class="change-plan__warning">
+        <i-lucide name="shield-check" [size]="14"></i-lucide>
+        <span>Validated locally and grouped into one Undo step.</span>
+      </div>
+      <div class="change-plan__actions">
+        <button type="button" class="plan-discard" (click)="discardPlan()" [disabled]="applying">Discard</button>
+        <button type="button" class="plan-apply" (click)="applyPlan()" [disabled]="applying">
+          <i-lucide name="circle-check" [size]="15"></i-lucide>
+          {{ applying ? 'Applying…' : 'Apply changes' }}
+        </button>
+      </div>
+    </section>
+
+    <div *ngIf="errorMessage" class="assistant-error" role="alert">
+      <i-lucide name="circle-alert" [size]="15"></i-lucide>
+      <div>
+        <span>{{ errorMessage }}</span>
+        <button *ngIf="lastFailedCommand" type="button" (click)="retryLastRequest()" [disabled]="busy">Retry request</button>
+      </div>
+    </div>
+
+    <div *ngIf="historyWarning" class="assistant-warning" role="status">
+      <i-lucide name="cloud-off" [size]="15"></i-lucide>
+      <span>{{ historyWarning }}</span>
+    </div>
+  </div>
+
+  <div *ngIf="!isSignedIn" class="assistant-gate">
+    <i-lucide name="shield-check" [size]="18"></i-lucide>
+    <div><strong>Sign in to make AI changes</strong><span>This protects the API and your family data.</span></div>
+    <button type="button" (click)="signInRequested.emit()">Sign in</button>
+  </div>
+
+  <div *ngIf="isSignedIn && !canEdit" class="assistant-gate assistant-gate--readonly">
+    <i-lucide name="info" [size]="18"></i-lucide>
+    <div><strong>View-only tree</strong><span>Ask an owner or editor before making changes.</span></div>
+  </div>
+
+  <form *ngIf="isSignedIn && canEdit" class="assistant-composer" (ngSubmit)="submit()">
+    <textarea
+      name="familyCommand"
+      rows="2"
+      maxlength="600"
+      [(ngModel)]="draft"
+      (keydown)="onComposerKeydown($event)"
+      [disabled]="busy || applying || historyLoading"
+      placeholder="e.g. Add Sriram as Uma’s son"
+      aria-label="Describe a family tree change"></textarea>
+    <button
+      type="button"
+      class="voice-button"
+      [class.voice-button--listening]="voiceListening"
+      (click)="toggleVoiceInput()"
+      [disabled]="busy || applying || historyLoading"
+      [attr.aria-pressed]="voiceListening"
+      [attr.aria-label]="voiceListening ? 'Stop voice input' : 'Start voice input'"
+      title="Speak your request">
+      <i-lucide [name]="voiceListening ? 'square' : 'mic'" [size]="20"></i-lucide>
+    </button>
+    <button type="submit" [disabled]="!draft.trim() || busy || applying || historyLoading" aria-label="Send change request">
+      <i-lucide name="arrow-right" [size]="18"></i-lucide>
+    </button>
+    <span *ngIf="voiceMessage" class="assistant-voice-status" role="status">{{ voiceMessage }}</span>
+    <small>Saved privately for this tree · Review voice text before sending</small>
+  </form>
+</section>

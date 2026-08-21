@@ -1,0 +1,231 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function ownsUserDoc(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function accessDocId(treeId) {
+      return request.auth.uid + "_" + treeId;
+    }
+
+    function userAccessPath(treeId) {
+      return /databases/$(database)/documents/treeAccess/$(accessDocId(treeId));
+    }
+
+    function hasActiveAccess(treeId) {
+      return signedIn()
+        && exists(userAccessPath(treeId))
+        && get(userAccessPath(treeId)).data.status == "active";
+    }
+
+    function hasRole(treeId, roles) {
+      return hasActiveAccess(treeId)
+        && get(userAccessPath(treeId)).data.role in roles;
+    }
+
+    function canReadPrivateTree(treeId) {
+      // Branch roles never receive the canonical tree document. Their scoped
+      // view is returned by an authenticated Cloud Function after it validates
+      // branchRootId. This prevents client-side scope bypasses.
+      return hasRole(treeId, ["owner", "coOwner", "viewer"]);
+    }
+
+    function canReadTreeSummary(treeId) {
+      return hasRole(treeId, ["owner", "coOwner", "viewer", "branchViewer", "branchEditor"]);
+    }
+
+    function canWriteWholeTree(treeId) {
+      return hasRole(treeId, ["owner", "coOwner"]);
+    }
+
+    function sharePath(code) {
+      return /databases/$(database)/documents/shares/$(code);
+    }
+
+    function inviteMatchesAccess(code) {
+      return code is string
+        && exists(sharePath(code))
+        && get(sharePath(code)).data.treeId == request.resource.data.treeId
+        && get(sharePath(code)).data.ownerUid == request.resource.data.ownerUid
+        && get(sharePath(code)).data.recipientEmail == request.auth.token.email
+        && get(sharePath(code)).data.role == request.resource.data.role
+        && get(sharePath(code)).data.scope == request.resource.data.scope
+        && get(sharePath(code)).data.status in ["pending", "accepted", "active"];
+    }
+
+    function userAcceptsInviteAccess() {
+      return signedIn()
+        && request.resource.data.memberUid == request.auth.uid
+        && request.resource.data.memberEmail == request.auth.token.email
+        && request.resource.data.status == "active"
+        && !(request.resource.data.role == "owner")
+        && inviteMatchesAccess(request.resource.data.sourceShareCode);
+    }
+
+    function ownerWritesAccess() {
+      return signedIn()
+        && request.resource.data.ownerUid == request.auth.uid;
+    }
+
+    function recipientAcceptsShare() {
+      return signedIn()
+        && resource.data.recipientEmail == request.auth.token.email
+        && request.resource.data.diff(resource.data).changedKeys()
+          .hasOnly(["status", "acceptedByUid", "acceptedByEmail", "updatedAt"])
+        && request.resource.data.status == "accepted"
+        && request.resource.data.acceptedByUid == request.auth.uid
+        && request.resource.data.acceptedByEmail == request.auth.token.email;
+    }
+
+    match /users/{uid} {
+      allow read, create, update: if ownsUserDoc(uid);
+      allow delete: if false;
+
+      match /trees/{treeId} {
+        // Canonical documents can contain private data for living relatives.
+        // Public views are server-redacted by getPublicTreeView.
+        allow read: if ownsUserDoc(uid)
+          || canReadPrivateTree(treeId);
+        allow create: if ownsUserDoc(uid)
+          && request.resource.data.ownerUid == request.auth.uid;
+        allow update: if ownsUserDoc(uid)
+          || canWriteWholeTree(treeId);
+        allow delete: if ownsUserDoc(uid);
+
+        match /activity/{activityId} {
+          allow read: if ownsUserDoc(uid) || hasRole(treeId, ["owner", "coOwner"]);
+          allow write: if false;
+        }
+      }
+
+      // AI history is private to one signed-in user and one tree. Keeping it
+      // under the user's document prevents another member of the same tree
+      // from reading that user's prompts.
+      match /aiTreeChats/{treeId}/messages/{messageId} {
+        allow read: if ownsUserDoc(uid);
+        allow create: if ownsUserDoc(uid)
+          && request.resource.data.keys().hasOnly([
+            "treeId", "role", "text", "context", "task", "createdAt"
+          ])
+          && request.resource.data.treeId == treeId
+          && request.resource.data.role in ["user", "assistant"]
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 2000
+          && request.resource.data.context in ["create", "general"]
+          && (!("task" in request.resource.data) || (
+            request.resource.data.task is map
+            && request.resource.data.task.keys().hasOnly([
+              "intent", "status", "title", "summary", "knownDetails", "nextQuestion"
+            ])
+            && request.resource.data.task.intent in ["add", "update"]
+            && request.resource.data.task.status in ["active", "ready", "completed", "cancelled"]
+            && request.resource.data.task.title is string
+            && request.resource.data.task.title.size() > 0
+            && request.resource.data.task.title.size() <= 120
+            && request.resource.data.task.summary is string
+            && request.resource.data.task.summary.size() > 0
+            && request.resource.data.task.summary.size() <= 500
+            && request.resource.data.task.knownDetails is list
+            && request.resource.data.task.knownDetails.size() <= 8
+            && request.resource.data.task.nextQuestion is string
+            && request.resource.data.task.nextQuestion.size() <= 300
+          ))
+          && request.resource.data.createdAt == request.time;
+        allow update, delete: if false;
+      }
+    }
+
+    match /treeSummaries/{treeId} {
+      allow read: if resource.data.visibility == "public"
+        || (signedIn() && resource.data.ownerUid == request.auth.uid)
+        || canReadTreeSummary(treeId);
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid;
+      allow update: if signedIn()
+        && (resource.data.ownerUid == request.auth.uid || canWriteWholeTree(treeId));
+      allow delete: if signedIn()
+        && resource.data.ownerUid == request.auth.uid;
+    }
+
+    match /treeRoutes/{routeId} {
+      // A route is only an opaque pointer. Tree data remains protected by the
+      // existing tree/access rules after this lookup.
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && routeId.matches('^[a-f0-9]{4}(-[a-f0-9]{4}){3}$')
+        && request.resource.data.routeId == routeId
+        && (request.resource.data.ownerUid == request.auth.uid
+          || canWriteWholeTree(request.resource.data.treeId));
+      allow update, delete: if false;
+    }
+
+    match /treeAccess/{accessId} {
+      allow read: if signedIn()
+        && (resource.data.ownerUid == request.auth.uid
+          || resource.data.memberUid == request.auth.uid
+          || hasRole(resource.data.treeId, ["owner", "coOwner"]));
+      allow create: if ownerWritesAccess() || userAcceptsInviteAccess();
+      allow update: if ownerWritesAccess() || userAcceptsInviteAccess();
+      allow delete: if signedIn()
+        && (resource.data.ownerUid == request.auth.uid || resource.data.memberUid == request.auth.uid);
+    }
+
+    match /shares/{code} {
+      allow read: if resource.data.visibility == "public"
+        || (signedIn()
+          && (resource.data.createdByUid == request.auth.uid
+            || resource.data.ownerUid == request.auth.uid
+            || resource.data.recipientEmail == request.auth.token.email
+            || hasRole(resource.data.treeId, ["owner", "coOwner"])));
+      allow create: if signedIn()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.visibility == "public"
+        && hasRole(request.resource.data.treeId, ["owner", "coOwner"]);
+      allow update: if signedIn()
+        && (resource.data.createdByUid == request.auth.uid
+          || resource.data.ownerUid == request.auth.uid
+          || hasRole(resource.data.treeId, ["owner", "coOwner"])
+          || recipientAcceptsShare());
+      allow delete: if false;
+    }
+
+    match /publicSlugs/{slug} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if signedIn()
+        && (request.resource.data.ownerUid == request.auth.uid
+          || hasRole(request.resource.data.treeId, ["owner", "coOwner"]))
+        && request.resource.data.visibility == "public"
+        && request.resource.data.status == "active"
+        && request.resource.data.code is string
+        && request.resource.data.treeId is string;
+      allow update: if signedIn()
+        && (resource.data.ownerUid == request.auth.uid
+          || resource.data.createdByUid == request.auth.uid
+          || hasRole(resource.data.treeId, ["owner", "coOwner"]))
+        && request.resource.data.diff(resource.data).changedKeys()
+          .hasOnly(["status", "updatedAt"])
+        && request.resource.data.status == "cancelled";
+      allow delete: if false;
+    }
+
+    match /treeApprovals/{requestId} {
+      allow read: if signedIn()
+        && (resource.data.ownerUid == request.auth.uid || resource.data.requestedByUid == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.requestedByUid == request.auth.uid
+        && hasRole(request.resource.data.treeId, ["coOwner"]);
+      allow update: if signedIn()
+        && resource.data.ownerUid == request.auth.uid;
+      allow delete: if false;
+    }
+  }
+}

@@ -6,6 +6,31 @@ export enum Gender {
 
 export type RelationType = 'blood' | 'spouse';
 
+export const SOCIAL_PLATFORMS = [
+  'instagram',
+  'facebook',
+  'snapchat',
+  'x',
+  'linkedin',
+  'youtube',
+  'tiktok'
+] as const;
+
+export type SocialPlatform = typeof SOCIAL_PLATFORMS[number];
+
+export interface SocialProfile {
+  platform: SocialPlatform;
+  /** A username/handle or a complete profile URL. */
+  handle: string;
+  /** Only public profiles are exposed in the person profile header. */
+  isPublic: boolean;
+}
+
+export type SocialProfileForm = Record<SocialPlatform, {
+  handle: string;
+  isPublic: boolean;
+}>;
+
 export type ParentRelationshipType =
   | 'biological_parent'
   | 'adoptive_parent'
@@ -60,6 +85,7 @@ export interface PersonStory {
 export interface TreeNode {
   id: string;
   treeName?: string;
+  treeOwnerName?: string;
   name: string;
   gender: Gender;
   age: number;
@@ -74,6 +100,7 @@ export interface TreeNode {
   deathDate?: string;
   birthPlace?: string;
   photoUrl?: string;
+  socialProfiles?: SocialProfile[];
   notes?: string;
   tags?: string[];
   stories?: PersonStory[];
@@ -99,13 +126,111 @@ export interface FormData {
   notes: string;
   tags: string;
   photoUrl: string;
+  socialProfiles: SocialProfileForm;
   parentRelationshipType: ParentRelationshipType;
   partnerRelationshipType: PartnerRelationshipType;
   relationshipStartDate: string;
   relationshipEndDate: string;
 }
 
-export type ActionType = 'add_child' | 'add_spouse' | 'edit';
+export type ActionType = 'add_parent' | 'add_child' | 'add_spouse' | 'edit';
+
+export type TreeAccessRole = 'owner' | 'coOwner' | 'viewer' | 'branchViewer' | 'branchEditor';
+export type TreeVisibility = 'private' | 'public';
+export type TreeShareScope = 'tree' | 'branch';
+export type ShareStatus = 'active' | 'pending' | 'accepted' | 'cancelled';
+
+export interface TreeAccess {
+  accessId?: string;
+  treeId: string;
+  ownerUid: string;
+  memberUid?: string;
+  memberEmail?: string;
+  role: TreeAccessRole;
+  scope: TreeShareScope;
+  branchRootId?: string;
+  branchRootName?: string;
+  sourceShareCode?: string;
+  status: 'active' | 'pending' | 'removed';
+  acceptedAtLabel?: string;
+  updatedAtLabel?: string;
+}
+
+export interface TreeSummary {
+  treeId: string;
+  routeId?: string;
+  treeName: string;
+  treeOwnerName: string;
+  ownerUid: string;
+  ownerEmail?: string;
+  role: TreeAccessRole;
+  visibility: TreeVisibility;
+  source: 'created' | 'coOwned' | 'shared';
+  personCount: number;
+  updatedAtLabel: string;
+  branchRootId?: string;
+  branchRootName?: string;
+  pendingInviteCount?: number;
+  trashed?: boolean;
+}
+
+export interface ShareLinkRecord {
+  code: string;
+  secret?: string;
+  secureInvite?: boolean;
+  treeId: string;
+  ownerUid: string;
+  treeName: string;
+  treeOwnerName: string;
+  scope: TreeShareScope;
+  role: TreeAccessRole;
+  visibility: TreeVisibility;
+  status: ShareStatus;
+  recipientEmail?: string;
+  slug?: string;
+  branchRootId?: string;
+  branchRootName?: string;
+  inviterName?: string;
+  expiresAtLabel?: string;
+  maxClaims?: number;
+  acceptedCount?: number;
+  createdByUid?: string;
+  createdByEmail?: string;
+  createdAtLabel?: string;
+  updatedAtLabel?: string;
+}
+
+export interface ShareLinkRequest {
+  scope: TreeShareScope;
+  role: TreeAccessRole;
+  isPublic: boolean;
+  recipientEmail?: string;
+  branchRootId?: string;
+  branchRootName?: string;
+}
+
+export type SharedTreeLoadStatus =
+  | 'ready'
+  | 'loaded'
+  | 'signInRequired'
+  | 'forbidden'
+  | 'notFound'
+  | 'cancelled'
+  | 'expired'
+  | 'claimed'
+  | 'unavailable';
+
+export type TreeRouteLoadStatus = 'loaded' | 'signInRequired' | 'forbidden' | 'notFound';
+
+export interface TreeRouteLoadResult {
+  status: TreeRouteLoadStatus;
+}
+
+export interface SharedTreeLoadResult {
+  status: SharedTreeLoadStatus;
+  share?: ShareLinkRecord;
+  alreadyClaimed?: boolean;
+}
 
 export interface CurrentNode {
   id: string;
@@ -139,6 +264,7 @@ export interface GuidedTreeInput {
   selfGender: Gender;
   selfBirthDate?: string;
   selfLocation?: string;
+  selfPhotoUrl?: string;
   parentOneName?: string;
   parentTwoName?: string;
   siblingNames?: string[];
