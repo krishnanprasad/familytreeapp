@@ -337,6 +337,32 @@
             </form>
           </div>
 
+          <aside
+            *ngIf="showFirstRelativePrompt"
+            class="first-relative-prompt"
+            aria-label="Add your first relative"
+            (pointerdown)="$event.stopPropagation()"
+            (click)="$event.stopPropagation()">
+            <button type="button" class="first-relative-prompt__close" (click)="dismissFirstRelativePrompt()" aria-label="Hide first relative prompt">
+              <i-lucide name="x" [size]="14"></i-lucide>
+            </button>
+            <div class="first-relative-prompt__copy">
+              <span>Build your first branch</span>
+              <strong>Who should we add next?</strong>
+            </div>
+            <div class="first-relative-prompt__actions">
+              <button
+                *ngFor="let option of visibleFirstRelativeOptions"
+                type="button"
+                (click)="startFirstRelative(option.kind)"
+                [attr.aria-label]="'Add ' + option.label">
+                <i-lucide [name]="option.icon" [size]="16"></i-lucide>
+                <span>{{ option.label }}</span>
+                <small>{{ option.hint }}</small>
+              </button>
+            </div>
+          </aside>
+
           <div class="tree-stage" [style.transform]="'translate(' + position.x + 'px, ' + position.y + 'px) scale(' + scale + ')'">
             <app-tree-node
               *ngIf="treeData"

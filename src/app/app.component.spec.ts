@@ -132,7 +132,7 @@ describe('AppComponent', () => {
     app.selectPerson(person);
     expect(app.selectedPerson).toBeTruthy();
 
-    app.openPersonForm(person, 'edit');
+    app.openPersonForm(app.treeData!, 'edit');
     fixture.detectChanges();
 
     expect(app.selectedPerson).toBeNull();
@@ -140,6 +140,31 @@ describe('AppComponent', () => {
     const nameInput = fixture.nativeElement.querySelector('input[name="name"]') as HTMLInputElement;
     expect(nameInput.disabled).toBeFalse();
     expect(nameInput.readOnly).toBeFalse();
+  });
+
+  it('should nudge one-person trees toward adding the first relative', () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const app = fixture.componentInstance;
+    app.onboardingVisible = false;
+    fixture.detectChanges();
+
+    const prompt = fixture.nativeElement.querySelector('.first-relative-prompt') as HTMLElement;
+    expect(prompt).toBeTruthy();
+    expect(prompt.textContent).toContain('Who should we add next?');
+    expect(prompt.textContent).toContain('Father');
+    expect(prompt.textContent).toContain('Mother');
+
+    const fatherButton = Array.from(
+      fixture.nativeElement.querySelectorAll('.first-relative-prompt__actions button') as NodeListOf<HTMLButtonElement>
+    ).find(button => button.textContent?.includes('Father'))!;
+    fatherButton.click();
+    fixture.detectChanges();
+
+    expect(app.modalOpen).toBeTrue();
+    expect(app.actionType).toBe('add_parent');
+    expect(app.formData.gender).toBe(app.Gender.MALE);
+    expect(fixture.nativeElement.textContent).toContain(`Add father for ${app.treeData!.name}`);
   });
 
   it('should open branch sharing from the selected person profile', () => {
@@ -192,7 +217,7 @@ describe('AppComponent', () => {
     const app = fixture.componentInstance;
     const person = app.treeData!;
 
-    app.openPersonForm(person, 'edit');
+    app.openPersonForm(app.treeData!, 'edit');
     app.formData.age = '44';
     app.formData.birthDate = '15-04-1982';
     app.formData.location = 'Salem, Tamil Nadu, India';
@@ -205,14 +230,19 @@ describe('AppComponent', () => {
     expect(updatedPerson.location).toBe('Salem, Tamil Nadu, India');
   });
 
-  it('should use native date pickers and load saved ISO dates for editing', () => {
+  it('should use native date pickers and load saved ISO dates for editing', fakeAsync(() => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     const app = fixture.componentInstance;
     const person = app.treeData!;
-    person.birthDate = '1982-04-15';
 
     app.openPersonForm(person, 'edit');
+    app.formData.birthDate = '1982-04-15';
+    app.handleSubmit();
+
+    app.openPersonForm(app.treeData!, 'edit');
+    fixture.detectChanges();
+    tick();
     fixture.detectChanges();
 
     const birthDate = fixture.nativeElement.querySelector('input[name="birthDate"]') as HTMLInputElement;
@@ -223,7 +253,7 @@ describe('AppComponent', () => {
     fixture.detectChanges();
     const deathDate = fixture.nativeElement.querySelector('input[name="deathDate"]') as HTMLInputElement;
     expect(deathDate.type).toBe('date');
-  });
+  }));
 
   it('should use native date pickers for relationship start and end dates', () => {
     const fixture = TestBed.createComponent(AppComponent);
@@ -460,6 +490,8 @@ describe('AppComponent', () => {
     fixture.detectChanges();
     const app = fixture.componentInstance;
     const parent = app.treeData!;
+    parent.name = 'Krishnan';
+    parent.location = 'Salem, Tamil Nadu, India';
 
     app.openPersonForm(parent, 'add_child');
     app.formData.name = `${parent.name.slice(0, -1)}x`;

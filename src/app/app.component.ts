@@ -47,6 +47,7 @@ import { AiApplyResult } from './models/ai-family.model';
 type WorkspaceView = 'tree' | 'list' | 'timeline';
 type ToolsTab = 'import' | 'bulk';
 type MissingFilter = '' | 'birthDate' | 'location' | 'photo' | 'stories';
+type FirstRelativeKind = 'father' | 'mother' | 'spouse' | 'child';
 type SearchIndexEntry = PersonIndexEntry & {
   searchableText: string;
   searchableLocation: string;
@@ -77,6 +78,12 @@ interface DuplicatePersonMatch {
 }
 
 type ShareMode = 'public' | 'invite';
+interface FirstRelativeOption {
+  kind: FirstRelativeKind;
+  label: string;
+  hint: string;
+  icon: string;
+}
 
 @Component({
   selector: 'app-root',
@@ -155,6 +162,12 @@ export class AppComponent implements OnInit, OnDestroy {
     { value: 'branchViewer', label: 'Branch viewer' },
     { value: 'branchEditor', label: 'Branch editor' }
   ];
+  readonly firstRelativeOptions: FirstRelativeOption[] = [
+    { kind: 'father', label: 'Father', hint: 'Add parent', icon: 'user-round-plus' },
+    { kind: 'mother', label: 'Mother', hint: 'Add parent', icon: 'user-round-plus' },
+    { kind: 'spouse', label: 'Spouse', hint: 'Add partner', icon: 'heart' },
+    { kind: 'child', label: 'Child', hint: 'Add child', icon: 'baby' }
+  ];
 
   treeData: TreeNode | null = null;
   treeName = 'My Family';
@@ -184,6 +197,7 @@ export class AppComponent implements OnInit, OnDestroy {
   filtersOpen = false;
   onboardingVisible = false;
   modalOpen = false;
+  firstRelativePromptLabel = '';
   shareOpen = false;
   advancedDetailsOpen = false;
   toolsOpen = false;
@@ -282,6 +296,8 @@ export class AppComponent implements OnInit, OnDestroy {
   private readonly signInStartedStorageKey = 'myFamilyTree_googleSignInStarted_v1';
   private readonly pendingInviteJoinStorageKey = 'myFamilyTree_pendingInviteJoin_v1';
   private readonly landingHandoffStorageKey = 'myFamilyTree_landingHandoff_v1';
+  private readonly firstRelativePromptDismissedStorageKey = 'myFamilyTree_firstRelativePromptDismissed_v1';
+  private firstRelativePromptDismissedTreeIds = new Set<string>();
 
   constructor(
     private treeService: TreeService,
@@ -294,6 +310,7 @@ export class AppComponent implements OnInit, OnDestroy {
   ) {
     this.user$ = this.authService.user$;
     this.loadDismissedHints();
+    this.loadFirstRelativePromptDismissals();
   }
 
   ngOnInit(): void {
@@ -527,6 +544,30 @@ export class AppComponent implements OnInit, OnDestroy {
       || (this.treeData?.tags?.some(tag => tag.trim().toLowerCase() === 'computer generated') ?? false);
   }
 
+  get visibleFirstRelativeOptions(): FirstRelativeOption[] {
+    return this.firstRelativeOptions.filter(option => {
+      if (option.kind === 'father' || option.kind === 'mother') {
+        return this.currentRole !== 'branchEditor' && this.treeData ? this.treeService.canAddParent(this.treeData.id) : false;
+      }
+      return true;
+    });
+  }
+
+  get showFirstRelativePrompt(): boolean {
+    return this.workspaceView === 'tree'
+      && !!this.treeData
+      && this.canEditCurrentTree
+      && !this.onboardingVisible
+      && !this.modalOpen
+      && !this.shareOpen
+      && !this.myTreesOpen
+      && !this.toolsOpen
+      && !this.inviteLandingVisible
+      && this.personIndex.length === 1
+      && this.visibleFirstRelativeOptions.length > 0
+      && !this.firstRelativePromptDismissedTreeIds.has(this.activeTreeId);
+  }
+
   openMyTrees(): void {
     this.myTreesOpen = true;
     void this.refreshMyTrees();
@@ -587,6 +628,7 @@ export class AppComponent implements OnInit, OnDestroy {
     if (this.selectedPerson) this.closeProfile();
     this.currentNode = node;
     this.actionType = action;
+    this.firstRelativePromptLabel = '';
     this.advancedDetailsOpen = action === 'edit';
     this.formData = action === 'edit' ? this.formFromNode(node) : this.emptyForm();
     if (action === 'add_spouse') this.formData.partnerRelationshipType = 'partner';
@@ -595,6 +637,28 @@ export class AppComponent implements OnInit, OnDestroy {
     this.locationSuggestionsOpen = false;
     this.highlightedLocationSuggestionIndex = 0;
     this.locationAutocompleteStatus = 'Start typing, then choose a place or saved suggestion';
+  }
+
+  startFirstRelative(kind: FirstRelativeKind): void {
+    if (!this.treeData) return;
+    const action: ActionType = kind === 'spouse'
+      ? 'add_spouse'
+      : kind === 'child'
+        ? 'add_child'
+        : 'add_parent';
+    this.openPersonForm(this.treeData, action);
+    if (!this.modalOpen) return;
+
+    const labels: Record<FirstRelativeKind, string> = {
+      father: 'father',
+      mother: 'mother',
+      spouse: 'spouse',
+      child: 'child'
+    };
+    this.firstRelativePromptLabel = labels[kind];
+    if (kind === 'father') this.formData.gender = Gender.MALE;
+    if (kind === 'mother') this.formData.gender = Gender.FEMALE;
+    if (kind === 'spouse') this.formData.partnerRelationshipType = 'spouse';
   }
 
   handleNodeAction(_nodeId: string, action: ActionType, node: TreeNode): void {
@@ -716,6 +780,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.googlePlacesService.resetAutocompleteSession();
     this.modalOpen = false;
     this.currentNode = null;
+    this.firstRelativePromptLabel = '';
     this.locationSuggestionsOpen = false;
   }
 
@@ -1299,6 +1364,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
   dismissPublicSharePrompt(): void {
     this.publicSharePromptVisible = false;
+  }
+
+  dismissFirstRelativePrompt(): void {
+    this.firstRelativePromptDismissedTreeIds.add(this.activeTreeId);
+    localStorage.setItem(
+      this.firstRelativePromptDismissedStorageKey,
+      JSON.stringify([...this.firstRelativePromptDismissedTreeIds])
+    );
   }
 
   async signInFromPublicPrompt(): Promise<void> {
@@ -1887,6 +1960,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   getModalTitle(): string {
     if (!this.currentNode) return '';
+    if (this.firstRelativePromptLabel) return `Add ${this.firstRelativePromptLabel} for ${this.currentNode.name}`;
     if (this.actionType === 'add_parent') return `Add a parent for ${this.currentNode.name}`;
     if (this.actionType === 'add_child') return `Add a child to ${this.currentNode.name}`;
     if (this.actionType === 'add_spouse') return `Add a partner for ${this.currentNode.name}`;
@@ -2145,6 +2219,17 @@ export class AppComponent implements OnInit, OnDestroy {
       if (Array.isArray(saved)) this.dismissedHints = new Set(saved.filter((value): value is string => typeof value === 'string'));
     } catch {
       this.dismissedHints = new Set<string>();
+    }
+  }
+
+  private loadFirstRelativePromptDismissals(): void {
+    try {
+      const saved = JSON.parse(localStorage.getItem(this.firstRelativePromptDismissedStorageKey) ?? '[]') as unknown;
+      if (Array.isArray(saved)) {
+        this.firstRelativePromptDismissedTreeIds = new Set(saved.filter((value): value is string => typeof value === 'string'));
+      }
+    } catch {
+      this.firstRelativePromptDismissedTreeIds = new Set<string>();
     }
   }
 
